@@ -30,45 +30,6 @@ function fmt(n) { return Math.floor(n).toLocaleString('ko-KR'); }
 /* ---------- 그림 ---------- */
 const INK = '#2b2522';
 const XMLNS = 'xmlns="http://www.w3.org/2000/svg"';
-const svgUrl = s => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
-
-function armorSVG() {
-  return `<svg ${XMLNS} viewBox="0 0 100 100">
-  <path d="M50 20 Q50 4 68 6 Q60 12 57 21Z" fill="#e57373" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"/>
-  <path d="M30 94 L31 66 L69 66 L70 94Z" fill="#c4cad3" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M40 72 L60 72 M40 80 L60 80" stroke="${INK}" stroke-width="2" opacity=".4"/>
-  <ellipse cx="50" cy="46" rx="27" ry="26" fill="#e1e5ec" stroke="${INK}" stroke-width="3"/>
-  <rect x="29" y="40" width="42" height="11" rx="5.5" fill="#3a3540"/>
-  <circle cx="41" cy="45.5" r="2.2" fill="#fff"/><circle cx="59" cy="45.5" r="2.2" fill="#fff"/>
-  <ellipse cx="33" cy="58" rx="5" ry="3" fill="#f7b6c4"/><ellipse cx="67" cy="58" rx="5" ry="3" fill="#f7b6c4"/>
-  <path d="M38 30 Q50 25 62 30" fill="none" stroke="#fff" stroke-width="2.5" opacity=".7" stroke-linecap="round"/>
-</svg>`;
-}
-function kuriSVG() {
-  return `<svg ${XMLNS} viewBox="0 0 100 100">
-  <path d="M50 12 Q82 40 84 66 Q82 94 50 94 Q18 94 16 66 Q18 40 50 12Z" fill="#b97a4c" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M17 64 Q50 76 83 64 Q82 94 50 94 Q18 94 17 64Z" fill="#edcf9f" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M40 26 Q46 20 50 14" stroke="#fff" stroke-width="2.5" fill="none" opacity=".5" stroke-linecap="round"/>
-  <circle cx="40" cy="52" r="3.6" fill="${INK}"/><circle cx="60" cy="52" r="3.6" fill="${INK}"/>
-  <path d="M34 44 L45 46 M66 44 L55 46" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>
-  <path d="M42 62 Q50 58 58 62" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>
-  <ellipse cx="30" cy="60" rx="5" ry="3" fill="#f39a9a"/><ellipse cx="70" cy="60" rx="5" ry="3" fill="#f39a9a"/>
-</svg>`;
-}
-function rakkoSVG() {
-  return `<svg ${XMLNS} viewBox="0 0 100 100">
-  <circle cx="28" cy="26" r="7" fill="#9b7356" stroke="${INK}" stroke-width="3"/>
-  <circle cx="72" cy="26" r="7" fill="#9b7356" stroke="${INK}" stroke-width="3"/>
-  <path d="M26 92 Q22 66 32 60 L68 60 Q78 66 74 92Z" fill="#9b7356" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
-  <ellipse cx="50" cy="44" rx="28" ry="24" fill="#9b7356" stroke="${INK}" stroke-width="3"/>
-  <ellipse cx="50" cy="50" rx="20" ry="15" fill="#efdcc4"/>
-  <circle cx="40" cy="42" r="3.4" fill="${INK}"/><circle cx="60" cy="42" r="3.4" fill="${INK}"/>
-  <ellipse cx="50" cy="50" rx="4" ry="3" fill="${INK}"/>
-  <path d="M50 53 L50 57 M44 58 Q50 61 56 58" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>
-  <path d="M30 50 L40 51 M30 55 L40 54 M70 50 L60 51 M70 55 L60 54" stroke="${INK}" stroke-width="1.5" stroke-linecap="round"/>
-  <path d="M30 60 L70 60" stroke="#e8495f" stroke-width="5" stroke-linecap="round"/>
-</svg>`;
-}
 
 function monsterSVG(def, boss) {
   const c = def.c, s = INK;
@@ -137,19 +98,19 @@ function monsterSVG(def, boss) {
 
 const IMG = {};
 function loadImg(key, src) { const i = new Image(); i.src = src; IMG[key] = i; return i; }
-['chiikawa', 'hachiware', 'usagi'].forEach(k => loadImg(k, `img/${k}.png`));
-loadImg('armor', svgUrl(armorSVG()));
-loadImg('kuri', svgUrl(kuriSVG()));
-loadImg('rakko', svgUrl(rakkoSVG()));
+['chiikawa', 'hachiware', 'usagi'].forEach(k => loadImg(k, `img/spr_${k}.png`));
+['armor', 'armor2', 'kuri', 'rakko', 'shisa', 'momonga'].forEach(k => loadImg(k, `img/npc_${k}.png`));
 
 const SPEAKERS = {
   chiikawa: { name: '치이카와', img: 'img/chiikawa.png' },
   hachiware: { name: '하치와레', img: 'img/hachiware.png' },
   usagi: { name: '우사기', img: 'img/usagi.png' },
-  armor: { name: '갑옷씨', img: IMG.armor.src },
-  kuri: { name: '쿠리만쥬', img: IMG.kuri.src },
-  rakko: { name: '랏코', img: IMG.rakko.src },
-  ramen: { name: '라멘 가게 주인' },
+  armor: { name: '갑옷씨', img: 'img/npc_armor.png' },
+  armor2: { name: '도구점 갑옷씨', img: 'img/npc_armor2.png' },
+  kuri: { name: '쿠리만쥬', img: 'img/npc_kuri.png' },
+  rakko: { name: '랏코', img: 'img/npc_rakko.png' },
+  shisa: { name: '시사', img: 'img/npc_shisa.png' },
+  momonga: { name: '모몽가', img: 'img/npc_momonga.png' },
   n: { name: '' },
 };
 
@@ -215,20 +176,21 @@ const charmCost = lv => Math.round(35 * Math.pow(1.9, lv));
 const EQUIP_MAX = 8;
 
 const EN = {
-  kimera: { n: '작은 키메라', t: 'blob', c: '#c3b0ee', hp: 18, atk: 7, def: 2, spd: 5, exp: 6, coin: 5 },
-  grassblob: { n: '풀숲 덩어리', t: 'blob', c: '#94cc72', hp: 24, atk: 6, def: 4, spd: 3, exp: 7, coin: 6 },
+  kimera: { n: '작은 키메라', img: 'mon_pink', hp: 18, atk: 7, def: 2, spd: 5, exp: 6, coin: 5 },
+  bee: { n: '수상한 벌', img: 'mon_bee', hp: 15, atk: 8, def: 2, spd: 10, exp: 7, coin: 6 },
   spiky: { n: '뾰족 키메라', t: 'spiky', c: '#f2a7a7', hp: 16, atk: 9, def: 2, spd: 8, exp: 8, coin: 7 },
   mush: { n: '버섯 요괴', t: 'mush', c: '#e86f6f', hp: 45, atk: 13, def: 6, spd: 6, exp: 16, coin: 12 },
-  forestk: { n: '숲 키메라', t: 'blob', c: '#78b585', hp: 55, atk: 15, def: 7, spd: 7, exp: 18, coin: 13 },
+  anoko: { n: '하얀 키메라', img: 'mon_anoko', hp: 55, atk: 15, def: 7, spd: 7, exp: 18, coin: 13 },
   shadow: { n: '나무 그림자', t: 'eye', c: '#8c7a68', hp: 40, atk: 17, def: 5, spd: 10, exp: 20, coin: 15 },
   bat: { n: '박쥐 키메라', t: 'bat', c: '#8a75a0', hp: 70, atk: 22, def: 8, spd: 14, exp: 30, coin: 22 },
   rock: { n: '바위 덩어리', t: 'rock', c: '#a3a3b0', hp: 120, atk: 20, def: 16, spd: 4, exp: 34, coin: 25 },
-  cavek: { n: '동굴 키메라', t: 'spiky', c: '#7d9bb5', hp: 90, atk: 25, def: 10, spd: 9, exp: 36, coin: 28 },
-  boss1: { n: '숲의 주인', t: 'mush', c: '#c0392b', hp: 380, atk: 24, def: 9, spd: 7, exp: 150, coin: 200, boss: true, aoe: '포자 폭발' },
-  boss2: { n: '크고 강한 녀석', t: 'armor', c: '#8a5a2a', hp: 1100, atk: 34, def: 14, spd: 9, exp: 500, coin: 600, boss: true, aoe: '땅 울리기', twice: true },
+  elephant: { n: '악몽 코끼리', img: 'mon_elephant', hp: 95, atk: 25, def: 10, spd: 9, exp: 36, coin: 28 },
+  boss1: { n: '숲의 주인', img: 'mon_pond', hp: 380, atk: 24, def: 9, spd: 7, exp: 150, coin: 200, boss: true, aoe: '고구마 던지기' },
+  boss2: { n: '크고 강한 녀석', img: 'mon_deka', hp: 1100, atk: 34, def: 14, spd: 9, exp: 500, coin: 600, boss: true, aoe: '땅 울리기', twice: true },
 };
-loadImg('boss1', svgUrl(monsterSVG(EN.boss1, true)));
-loadImg('boss2', svgUrl(monsterSVG(EN.boss2, true)));
+loadImg('boss1', 'img/mon_pond.png');
+loadImg('boss2', 'img/mon_deka.png');
+const enemyArt = d => d.img ? `<img src="img/${d.img}.png" alt="">` : monsterSVG(d, d.boss);
 
 /* ---------- 맵 ---------- */
 const T = 40;
@@ -283,7 +245,10 @@ function buildMaps() {
       npcs: [
         { id: 'armor', x: 10, y: 5, img: 'armor' },
         { id: 'kuri', x: 21, y: 6, img: 'kuri' },
+        { id: 'shisa', x: 18, y: 5, img: 'shisa' },
+        { id: 'armor2', x: 14, y: 5, img: 'armor2' },
         { id: 'rakko', x: 16, y: 12, img: 'rakko' },
+        { id: 'momonga', x: 10, y: 13, img: 'momonga' },
       ],
       exits: [{ x: 23, y: 9, to: 'field', tx: 1, ty: 10, label: '풀숲 ▶' }],
     };
@@ -311,7 +276,7 @@ function buildMaps() {
     }
     M.field = {
       id: 'field', name: '풀숲', theme: 'field', w, h, g, weeds,
-      enc: { rate: .1, on: ',', list: ['kimera', 'grassblob', 'spiky'], max: 2 },
+      enc: { rate: .1, on: ',', list: ['kimera', 'bee', 'spiky'], max: 2 },
       npcs: [{ id: 'usagi', x: 17, y: 4, img: 'usagi' }],
       exits: [
         { x: 0, y: 10, to: 'town', tx: 22, ty: 9, label: '◀ 마을' },
@@ -329,7 +294,7 @@ function buildMaps() {
     scatter(g, r, 'f', .04, (x, y) => g[y][x] === '.');
     M.forest = {
       id: 'forest', name: '깊은 숲', theme: 'forest', w, h, g,
-      enc: { rate: .12, on: ',', list: ['mush', 'forestk', 'shadow'], max: 3 },
+      enc: { rate: .12, on: ',', list: ['mush', 'anoko', 'shadow'], max: 3 },
       npcs: [],
       boss: { id: 'boss1', x: 27, y: 4, flag: 'boss1', need: 3, img: 'boss1' },
       exits: [
@@ -348,7 +313,7 @@ function buildMaps() {
     [[4, 4], [7, 6], [15, 14], [20, 16], [24, 7], [23, 12], [13, 1]].forEach(([x, y]) => g[y][x] = 'r');
     M.cave = {
       id: 'cave', name: '어두운 동굴', theme: 'cave', w, h, g,
-      enc: { rate: .085, on: '_', list: ['bat', 'rock', 'cavek'], max: 3 },
+      enc: { rate: .085, on: '_', list: ['bat', 'rock', 'elephant'], max: 3 },
       npcs: [],
       boss: { id: 'boss2', x: 16, y: 2, flag: 'boss2', need: 4, img: 'boss2' },
       exits: [
@@ -620,6 +585,7 @@ function drawSprite(img, x, y, h, flip, bob) {
   ctx.restore();
 }
 
+const NPC_H = { usagi: T * 1.15, armor: T * 1.45, armor2: T * 1.45 };
 function render() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   const th = THEME[map.theme];
@@ -647,7 +613,7 @@ function render() {
   const sprites = [];
   for (const n of map.npcs) {
     if (!npcVisible(n)) continue;
-    sprites.push({ y: n.y, draw: () => drawSprite(IMG[n.img], n.x * T + T / 2, n.y * T + T - 2, n.img === 'usagi' ? T * 1.15 : T * 1.05, false, Math.abs(Math.sin(rt.time * 2 + n.x)) * 2) });
+    sprites.push({ y: n.y, draw: () => drawSprite(IMG[n.img], n.x * T + T / 2, n.y * T + T - 2, NPC_H[n.img] || T * 1.05, false, Math.abs(Math.sin(rt.time * 2 + n.x)) * 2) });
   }
   if (bossAlive(map)) {
     const b = map.boss;
@@ -778,6 +744,13 @@ const EVENTS = {
     async kuri() {
       await talk([['kuri', pick(['프하ー! 일 끝나고 먹는 라멘은 최고지.', '토벌 후엔 뜨끈한 라멘을 먹어 둬. 기력이 쫙 돌아온다고.', '오늘도 수고했어. 맛있는 거 먹고 푹 자는 게 제일이야.'])]]);
     },
+    async shisa() {
+      await talk([['shisa', pick(['라멘 가게에서 아르바이트 중이에요! 열심히 할게요!', '라멘 먹으면 HP도 기력도 전부 회복돼요~!', '마스터의 라멘은 세계 제일이에요!'])]]);
+    },
+    async armor2() { await talk([['armor2', '도구점은 바로 뒤예요. 무기랑 부적도 손봐 드려요~']]); openShop(); },
+    async momonga() {
+      await talk([['momonga', pick(['나 귀엽지? 칭찬해 줘!', '흥! 나도 토벌 정도는 할 수 있다고!', '그 라멘, 나한테도 한 입 줘!'])], ['chiikawa', '…(꾸벅)']]);
+    },
     async rakko() {
       const tips = [
         '토벌의 기본은… 잘 먹고, 잘 쉬는 것이다.',
@@ -835,8 +808,8 @@ const EVENTS = {
       await talk([['chiikawa', '쿨… 쿨…'], ['n', '푹 쉬었다! HP와 기력이 모두 회복되었다.\n(진행 상황을 저장했다)']]);
     },
     async board() { await boardEvent(); },
-    async shop() { await talk([['armor', '어서 오세요~ 도구점이에요. 천천히 보세요.']]); openShop(); },
-    async ramen() { await talk([['ramen', '어서 오세요! 따끈한 라멘 있어요.']]); openRamen(); },
+    async shop() { await talk([['armor2', '어서 오세요~ 도구점이에요. 천천히 보세요.']]); openShop(); },
+    async ramen() { await talk([['shisa', '어서 오세요! 따끈한 라멘 있어요~!']]); openRamen(); },
   },
 };
 
@@ -963,7 +936,7 @@ function startBattle(ids, opts = {}) {
       <div class="en ${e.def.boss ? 'boss' : ''}" data-k="${e.key}">
         <div class="en-name">${e.name}</div>
         <div class="bar"><i></i></div>
-        <div class="en-img">${monsterSVG(e.def, e.def.boss)}</div>
+        <div class="en-img">${enemyArt(e.def)}</div>
       </div>`).join('');
     bEl.party.innerHTML = B.heroes.map((h, i) => `
       <div class="pc" data-i="${i}">
@@ -1385,7 +1358,7 @@ function openRamen() {
       <p class="muted">보유 보수: ${fmt(S.coins)}💰</p>
       <div class="row"><button class="btn yellow" data-a="eat" ${S.coins < RAMEN_PRICE ? 'disabled' : ''}>라멘 먹기 (💰 ${RAMEN_PRICE})</button></div>
     </div>
-    <div class="card"><div class="ico"><img src="${IMG.kuri.src}" alt=""></div><div class="main"><b>쿠리만쥬</b><div class="muted">"여기 라멘은 국물이 진짜라고. 프하ー!"</div></div></div>`,
+    <div class="card"><div class="ico"><img src="img/npc_kuri.png" alt=""></div><div class="main"><b>쿠리만쥬</b><div class="muted">"여기 라멘은 국물이 진짜라고. 프하ー!"</div></div></div>`,
   d => {
     if (d.a === 'eat' && S.coins >= RAMEN_PRICE) {
       S.coins -= RAMEN_PRICE;

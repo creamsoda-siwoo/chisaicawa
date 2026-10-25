@@ -131,7 +131,7 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 }
 .en.boss .en-name { background: #ffe0e0; color: #b02a2a; }
 .en .bar { margin: 3px auto 4px; width: 86%; }
-.en-img svg { width: 100%; display: block; overflow: visible; filter: drop-shadow(0 4px 0 rgba(0,0,0,.15)); }
+.en-img svg, .en-img img { width: 100%; display: block; overflow: visible; filter: drop-shadow(0 4px 0 rgba(0,0,0,.15)); }
 .en-img { transform-origin: 50% 100%; animation: idle 1.6s ease-in-out infinite; }
 .en.hit .en-img { animation: hit .25s; }
 .en.act .en-img { animation: lunge .35s; }
