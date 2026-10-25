@@ -32,7 +32,7 @@ const INK = '#2b2522';
 const IMG = {};
 function loadImg(key, src) { const i = new Image(); i.src = src; IMG[key] = i; return i; }
 ['chiikawa', 'hachiware', 'usagi'].forEach(k => loadImg(k, `img/spr_${k}.png`));
-['armor', 'armor2', 'kuri', 'rakko', 'shisa', 'momonga'].forEach(k => loadImg(k, `img/npc_${k}.png`));
+['armor', 'armor2', 'kuri', 'rakko', 'shisa', 'momonga', 'furuhon', 'pajama', 'pochette'].forEach(k => loadImg(k, `img/npc_${k}.png`));
 
 const SPEAKERS = {
   chiikawa: { name: '치이카와', img: 'img/chiikawa.png' },
@@ -44,6 +44,9 @@ const SPEAKERS = {
   rakko: { name: '랏코', img: 'img/npc_rakko.png' },
   shisa: { name: '시사', img: 'img/npc_shisa.png' },
   momonga: { name: '모몽가', img: 'img/npc_momonga.png' },
+  furuhon: { name: '후루혼야', img: 'img/npc_furuhon.png' },
+  pajama: { name: '파자마 파티즈', img: 'img/npc_pajama.png' },
+  pochette: { name: '포셰트 갑옷씨', img: 'img/npc_pochette.png' },
   master: { name: '라멘 가게 마스터' },
   sphinx_n: { name: '스핑크스', img: 'img/mon_sphinx.png' },
   n: { name: '' },
@@ -122,8 +125,38 @@ HERO.rakko = {
   ],
   say: { atk: ['핫!', '…', '흐읍.'], hurt: ['큭…', '아직이다.'] },
 };
-const HERO_IMG = { chiikawa: 'img/chiikawa.png', hachiware: 'img/hachiware.png', usagi: 'img/usagi.png', momonga: 'img/npc_momonga.png', kuri: 'img/npc_kuri.png', shisa: 'img/npc_shisa.png', rakko: 'img/npc_rakko.png' };
-const RECRUITS = ['usagi', 'momonga', 'kuri', 'shisa', 'rakko'];
+HERO.furuhon = {
+  name: '후루혼야', hp: 44, mp: 22, atk: 9, def: 6, spd: 8,
+  g: { hp: 9, mp: 4, atk: 2.2, def: 1.6, spd: 1 },
+  skills: [
+    { id: 'book', name: '두꺼운 책 던지기', lv: 1, mp: 5, target: 'enemy', mult: 2, desc: '적 하나에게 2배 공격' },
+    { id: 'expose', name: '약점 조사', lv: 1, mp: 6, target: 'debuff', desc: '3턴 동안 적 전체가 받는 피해 30% 증가' },
+    { id: 'read', name: '차분한 독서', lv: 1, mp: 4, target: 'party', desc: '모두의 기력 8 회복' },
+  ],
+  say: { atk: ['에잇…!', '실례합니다!', '흐읍!'], hurt: ['아앗…!', '책이…!'] },
+};
+HERO.pajama = {
+  name: '파자마 파티즈', hp: 50, mp: 18, atk: 12, def: 5, spd: 12,
+  g: { hp: 10, mp: 3, atk: 2.8, def: 1.4, spd: 1.1 },
+  skills: [
+    { id: 'uwawa', name: '우와와 합창', lv: 1, mp: 6, target: 'all', mult: 1.2, desc: '적 전체에게 1.2배 공격' },
+    { id: 'dance', name: '파자마 댄스', lv: 1, mp: 7, target: 'party', desc: '3턴 동안 모두의 공격력 1.4배' },
+    { id: 'four', name: '넷이서 와르르', lv: 1, mp: 8, target: 'random', hits: 4, mult: .8, word: '우와와!', desc: '무작위 적에게 4번 공격' },
+  ],
+  say: { atk: ['우와와!', '와ー!', '와와!'], hurt: ['우와…', '와앗!'] },
+};
+HERO.pochette = {
+  name: '포셰트 갑옷씨', hp: 85, mp: 12, atk: 13, def: 14, spd: 5,
+  g: { hp: 14, mp: 2, atk: 2.6, def: 2.6, spd: .6 },
+  skills: [
+    { id: 'taunt', name: '이쪽이에요!', lv: 1, mp: 3, target: 'self', desc: '3턴 동안 적의 공격을 자신에게 모은다' },
+    { id: 'wall', name: '철벽 수비', lv: 1, mp: 5, target: 'party', desc: '3턴 동안 모두가 받는 피해 30% 감소' },
+    { id: 'tackle', name: '갑옷 몸통박치기', lv: 1, mp: 5, target: 'enemy', mult: 2.4, desc: '적 하나에게 2.4배 공격' },
+  ],
+  say: { atk: ['에잇!', '실례!', '하압!'], hurt: ['끄떡없어요!', '윽…'] },
+};
+const HERO_IMG = { chiikawa: 'img/chiikawa.png', hachiware: 'img/hachiware.png', usagi: 'img/usagi.png', momonga: 'img/npc_momonga.png', kuri: 'img/npc_kuri.png', shisa: 'img/npc_shisa.png', rakko: 'img/npc_rakko.png', furuhon: 'img/npc_furuhon.png', pajama: 'img/npc_pajama.png', pochette: 'img/npc_pochette.png' };
+const RECRUITS = ['usagi', 'momonga', 'kuri', 'shisa', 'rakko', 'furuhon', 'pajama', 'pochette'];
 const PARTY_MAX = 4;
 const expNext = lv => Math.round(10 * Math.pow(lv, 1.5));
 function heroStats(m) {
@@ -147,8 +180,16 @@ const ITEMS = {
   bigherb: { name: '큰 약초', icon: '🍀', desc: 'HP 150 회복', price: 45, hp: 150 },
   tea: { name: '보리차', icon: '🍵', desc: '기력(MP) 15 회복', price: 25, mp: 15 },
   onigiri: { name: '주먹밥', icon: '🍙', desc: '쓰러진 동료를 HP 50%로 일으킨다', price: 80, revive: .5 },
+  fish: { name: '구운 전갱이', icon: '🐟', desc: 'HP 80 회복 (낚시로 얻음)', hp: 80, shop: false },
+  shrimp: { name: '새우튀김', icon: '🍤', desc: '기력 20 회복 (낚시로 얻음)', mp: 20, shop: false },
+  tai: { name: '도미 구이', icon: '🐡', desc: 'HP 300 회복 (낚시로 얻음)', hp: 300, shop: false },
 };
 const RAMEN_PRICE = 20;
+const DEX = [
+  ['풀숲', ['kimera', 'bee', 'spiky']], ['깊은 숲', ['anoko', 'mush', 'shadow', 'boss1']],
+  ['동굴', ['elephant', 'bat', 'rock', 'boss2']], ['바닷가', ['puffer', 'sunfish', 'mermaid', 'siren']],
+  ['유적', ['snake', 'rabbit', 'crier', 'sphinx']],
+];
 const wpnCost = lv => Math.round(40 * Math.pow(1.9, lv));
 const charmCost = lv => Math.round(35 * Math.pow(1.9, lv));
 const EQUIP_MAX = 8;
@@ -241,6 +282,7 @@ function buildMaps() {
         { id: 'armor2', x: 14, y: 5, img: 'armor2' },
         { id: 'rakko', x: 16, y: 12, img: 'rakko' },
         { id: 'momonga', x: 10, y: 13, img: 'momonga' },
+        { id: 'furuhon', x: 2, y: 10, img: 'furuhon' },
       ],
       exits: [
         { x: 23, y: 9, to: 'field', tx: 1, ty: 10, label: '풀숲 ▶' },
@@ -325,11 +367,11 @@ function buildMaps() {
     blobs(g, r, ',', 14, 2.4, '.');
     scatter(g, r, 'r', .04, (x, y) => (g[y][x] === '.' || g[y][x] === ',') && !nearPath(g, x, y) && y < 13);
     scatter(g, r, 'T', .03, (x, y) => g[y][x] === '.' && !nearPath(g, x, y) && y < 12);
-    rect(g, 25, 6, 4, 5, '.');
+    rect(g, 25, 6, 4, 5, '.'); g[6][16] = '.'; g[7][16] = '.';
     M.beach = {
       id: 'beach', name: '바닷가', theme: 'beach', w, h, g,
       enc: { rate: .11, on: ',', list: ['puffer', 'sunfish', 'mermaid'], max: 3 },
-      npcs: [],
+      npcs: [{ id: 'pajama', x: 16, y: 6, img: 'pajama' }],
       boss: { id: 'siren', x: 26, y: 8, flag: 'siren', need: 6, img: 'siren' },
       exits: [
         { x: 12, y: 0, to: 'town', tx: 12, ty: 15, label: '▲ 마을' },
@@ -344,11 +386,11 @@ function buildMaps() {
     blobs(g, r, ',', 18, 2.6, '.');
     scatter(g, r, 'p', .08, (x, y) => (g[y][x] === '.' || g[y][x] === ',') && !nearPath(g, x, y));
     scatter(g, r, 'r', .03, (x, y) => g[y][x] === '.' && !nearPath(g, x, y));
-    rect(g, 23, 1, 6, 5, '.');
+    rect(g, 23, 1, 6, 5, '.'); g[11][15] = '.'; g[11][13] = '.'; g[12][13] = '.';
     M.ruins = {
       id: 'ruins', name: '수수께끼의 유적', theme: 'ruins', w, h, g,
       enc: { rate: .12, on: ',', list: ['snake', 'rabbit', 'crier'], max: 3 },
-      npcs: [],
+      npcs: [{ id: 'pochette', x: 15, y: 11, img: 'pochette' }],
       boss: { id: 'sphinx', x: 26, y: 3, flag: 'sphinx', need: 7, img: 'sphinx' },
       exits: [{ x: 0, y: 10, to: 'beach', tx: 28, ty: 4, label: '◀ 바닷가' }],
     };
@@ -365,9 +407,11 @@ function freshState() {
     coins: 30,
     party: [newMember('chiikawa'), newMember('hachiware')],
     active: ['chiikawa', 'hachiware'],
-    items: { herb: 3, bigherb: 0, tea: 1, onigiri: 0 },
+    items: { herb: 3, bigherb: 0, tea: 1, onigiri: 0, fish: 0, shrimp: 0, tai: 0 },
+    fished: 0, fishTip: false,
     quest: 0, weeds: 0, kills: 0, repeat: false,
-    flags: { usagi: false, boss1: false, boss2: false, momonga: false, kuri: false, shisa: false, rakko: false, siren: false, sphinx: false },
+    flags: { usagi: false, boss1: false, boss2: false, momonga: false, kuri: false, shisa: false, rakko: false, siren: false, sphinx: false, furuhon: false, pajama: false, pochette: false },
+    dex: {}, autoBattle: false,
     steps: 0, playTime: 0,
   };
 }
@@ -555,6 +599,7 @@ function enterMap(id, x, y, dir) {
   resetChain();
   rt.encSafe = 5;
   $('#hud-area').textContent = map.name;
+  if (id === 'beach' && !S.fishTip) { S.fishTip = true; setTimeout(() => toast('🎣 바다 앞에서 「조사」하면 낚시를 할 수 있어요'), 400); }
   updateHud();
 }
 
@@ -609,7 +654,7 @@ function interact() {
   if (w) return pullWeed(w);
   const b = buildingAt(fx, fy);
   if (b) return EVENTS.building[b.kind]();
-  if (map.g[fy] && map.g[fy][fx] === '~') return talk([['chiikawa', '…(물이 반짝반짝)']]);
+  if (map.g[fy] && map.g[fy][fx] === '~') return map.id === 'beach' ? openFishing() : talk([['chiikawa', '…(물이 반짝반짝)']]);
 }
 
 function pullWeed(w) {
@@ -634,7 +679,7 @@ function drawSprite(img, x, y, h, flip, bob) {
   ctx.restore();
 }
 
-const NPC_H = { usagi: T * 1.15, armor: T * 1.45, armor2: T * 1.45 };
+const NPC_H = { usagi: T * 1.15, armor: T * 1.45, armor2: T * 1.45, pochette: T * 1.45, pajama: T * .95 };
 function render() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   const th = THEME[map.theme];
@@ -811,6 +856,21 @@ const EVENTS = {
         addMember('shisa'); await joinMsg('shisa'); save(); return;
       }
       await talk([['shisa', pick(['라멘 가게에서 아르바이트 중이에요! 열심히 할게요!', '라멘 먹으면 HP도 기력도 전부 회복돼요~!', '마스터의 라멘은 세계 제일이에요!'])]]);
+    },
+    async furuhon() {
+      if (S.quest >= 4) {
+        await talk([['furuhon', '아, 어서 오세요… 고서점 「후루혼야」예요.'], ['furuhon', '토벌 자격 시험이요? 그렇다면 이 책이 도움이 될 거예요. 「키메라의 약점 대백과」…'], ['furuhon', '…아니, 차라리 제가 직접 같이 가서 알려 드릴게요!'], ['hachiware', '책방 주인이 같이 와 주다니 든든하다!']]);
+        addMember('furuhon'); await joinMsg('furuhon'); save(); return;
+      }
+      await talk([['furuhon', pick(['오래된 책이 잔뜩 있어요. 천천히 구경하세요…', '자격 시험 교재도 있답니다. 아직 이르려나…?'])]]);
+    },
+    async pajama() {
+      await talk([['pajama', '우와와ー!! 우와와와ー!!'], ['chiikawa', '…!?'], ['hachiware', '파자마 파티즈다! 바닷가 공연 중인가 봐!'], ['pajama', '우와와! (같이 가고 싶대!)']]);
+      addMember('pajama'); await joinMsg('pajama'); save();
+    },
+    async pochette() {
+      await talk([['pochette', '앗, 사람이다…! 유적을 조사하다가 길을 잃었어요.'], ['pochette', '이 포셰트, 귀엽죠? 손수 만들었답니다.'], ['pochette', '구해 주신 보답으로 앞으로는 제가 방패가 되어 드릴게요!'], ['usagi', '야하!']]);
+      addMember('pochette'); await joinMsg('pochette'); save();
     },
     async armor2() { await talk([['armor2', '도구점은 바로 뒤예요. 무기랑 부적도 손봐 드려요~']]); openShop(); },
     async momonga() {
@@ -1076,6 +1136,7 @@ function startBattle(ids, opts = {}) {
         <div class="buffs"></div>
       </div>`).join('');
     bEl.cmd.innerHTML = '';
+    refreshAutoBtn();
     bEl.root.hidden = false;
     bEl.root.classList.remove('enter'); void bEl.root.offsetWidth; bEl.root.classList.add('enter');
     refreshBattle();
@@ -1101,7 +1162,7 @@ function refreshBattle() {
     el.querySelector('.mpn').textContent = `기력 ${h.mp}`;
     el.classList.toggle('ko', h.hp <= 0);
     el.classList.toggle('active', B.cur === h);
-    el.querySelector('.buffs').textContent = (h.buffs.teary > 0 ? '💧각성 ' : '') + (h.buffs.song > 0 ? '🎸업 ' : '') + (h.buffs.shell > 0 ? '🛡️보호 ' : '') + (h.guard ? '방어' : '');
+    el.querySelector('.buffs').textContent = (h.buffs.teary > 0 ? '💧각성 ' : '') + (h.buffs.song > 0 ? '🎸업 ' : '') + (h.buffs.shell > 0 ? '🛡️보호 ' : '') + (h.buffs.taunt > 0 ? '📢도발 ' : '') + (h.guard ? '방어' : '');
   });
 }
 const enemyEl = e => bEl.enemies.querySelector(`.en[data-k="${e.key}"]`);
@@ -1130,6 +1191,7 @@ function damage(att, tgt, mult) {
   if (crit) dmg *= 1.6;
   if (tgt.guard) dmg *= .5;
   if (tgt.buffs.shell > 0) dmg *= .7;
+  if (tgt.buffs.expose > 0) dmg *= 1.3;
   dmg = Math.max(1, Math.round(dmg));
   tgt.hp = Math.max(0, tgt.hp - dmg);
   floatAt(tgt, (crit ? '치명타! ' : '') + dmg, crit ? 'crit' : '');
@@ -1166,11 +1228,48 @@ async function battleLoop() {
 function chooseAction(u) {
   return new Promise(res => {
     B.cur = u;
-    B.resolve = act => { B.cur = null; B.pick = null; bEl.cmd.innerHTML = ''; clearTargets(); refreshBattle(); res(act); };
+    B.resolve = act => { clearTimeout(B.autoTimer); B.cur = null; B.pick = null; bEl.cmd.innerHTML = ''; clearTargets(); refreshBattle(); res(act); };
     refreshBattle();
-    showMainCmd(u);
+    if (S.autoBattle) queueAuto(u);
+    else showMainCmd(u);
   });
 }
+function queueAuto(u) {
+  clearTargets();
+  bEl.msg.textContent = `${u.name}의 차례 (자동 전투 중)`;
+  bEl.cmd.innerHTML = '<div class="hint">🤖 자동 전투 중… 오른쪽 위 버튼으로 끌 수 있어요</div>';
+  B.autoTimer = setTimeout(() => { if (B.cur === u) B.resolve(autoAction(u)); }, 300);
+}
+function autoAction(u) {
+  const skills = HERO[u.id].skills.filter(s => u.m.lv >= s.lv && u.mp >= s.mp);
+  const heroes = alive(B.heroes), foes = alive(B.enemies);
+  const ratio = h => h.hp / h.st.maxHp;
+  const low = heroes.filter(h => ratio(h) < .4).sort((a, b) => ratio(a) - ratio(b));
+  const heal = skills.find(s => ['nantoka', 'snack', 'delivery'].includes(s.id));
+  if (low.length && heal) return { type: 'skill', s: heal, target: low[0] };
+  const ko = B.heroes.find(h => h.hp <= 0);
+  if (ko && S.items.onigiri > 0 && u.hp > 0) return { type: 'item', key: 'onigiri', target: ko };
+  const target = foes.slice().sort((a, b) => a.hp - b.hp)[0];
+  const rich = u.mp >= u.st.maxMp * .4 || B.boss;
+  const allS = skills.filter(s => s.target === 'all').sort((a, b) => b.mult - a.mult)[0];
+  if (allS && foes.length >= 2 && rich) return { type: 'skill', s: allS };
+  const one = skills.filter(s => s.target === 'enemy' || s.target === 'random').sort((a, b) => (b.mult * (b.hits || 1)) - (a.mult * (a.hits || 1)))[0];
+  if (one && rich && target.hp > atkOf(u) * 1.2) return { type: 'skill', s: one, target };
+  return { type: 'attack', target };
+}
+function refreshAutoBtn() {
+  const b = $('#b-auto');
+  b.textContent = S.autoBattle ? '🤖 자동 ON' : '🤖 자동 OFF';
+  b.classList.toggle('on', S.autoBattle);
+}
+$('#b-auto').addEventListener('click', e => {
+  e.stopPropagation();
+  S.autoBattle = !S.autoBattle;
+  refreshAutoBtn();
+  if (!B.cur) return;
+  if (S.autoBattle) { B.pick = null; queueAuto(B.cur); }
+  else { clearTimeout(B.autoTimer); showMainCmd(B.cur); }
+});
 function showMainCmd(u) {
   clearTargets();
   bEl.msg.textContent = `${josa(u.name, '은는')} 무엇을 할까?`;
@@ -1279,10 +1378,25 @@ async function heroAct(u, act) {
       }
       refreshBattle();
       await say('하치와레: "어떻게든 될 거야!" 모두의 HP가 회복되었다!');
-    } else if (s.id === 'song' || s.id === 'spirit') {
+    } else if (s.id === 'expose') {
+      for (const e of alive(B.enemies)) e.buffs.expose = 3;
+      await say('후루혼야: "약점은… 여기예요!" 적 전체가 받는 피해가 늘어났다!');
+    } else if (s.id === 'read') {
+      for (const h of alive(B.heroes)) { const v = Math.min(h.st.maxMp - h.mp, 8); h.mp += v; floatAt(h, '+' + v, 'heal'); }
+      refreshBattle();
+      await say('조용히 책장을 넘기자 모두 마음이 차분해졌다. 기력 회복!');
+    } else if (s.id === 'taunt') {
+      u.buffs.taunt = 4;
+      refreshBattle();
+      await say('포셰트 갑옷씨: "이쪽이에요!" 적의 시선이 모였다!');
+    } else if (s.id === 'wall') {
+      for (const h of alive(B.heroes)) h.buffs.shell = h === u ? 4 : 3;
+      refreshBattle();
+      await say('갑옷씨가 앞을 막아섰다! 모두 피해를 덜 받게 되었다!');
+    } else if (s.id === 'song' || s.id === 'spirit' || s.id === 'dance') {
       for (const h of alive(B.heroes)) h.buffs.song = h === u ? 4 : 3;
       refreshBattle();
-      await say(s.id === 'song' ? '♪ 기타 소리에 모두 힘이 솟는다! 공격력 업!' : '랏코의 기백에 모두 힘이 솟는다! 공격력 업!');
+      await say({ song: '♪ 기타 소리에 모두 힘이 솟는다! 공격력 업!', spirit: '랏코의 기백에 모두 힘이 솟는다! 공격력 업!', dance: '♪ 우와와~ 파자마 댄스에 모두 신이 났다! 공격력 업!' }[s.id]);
     } else if (s.id === 'cute') {
       for (const e of alive(B.enemies)) e.buffs.weak = 3;
       await say('모몽가: "나 귀엽지~?" 적들이 힘이 빠졌다! (공격력 다운)');
@@ -1347,7 +1461,8 @@ async function enemyAct(e) {
     for (const h of targets) damage(e, h, .8);
     await say('모두에게 큰 피해!');
   } else {
-    const t = pick(targets);
+    const taunt = targets.filter(h => h.buffs.taunt > 0);
+    const t = pick(taunt.length ? taunt : targets);
     const r = damage(e, t, 1);
     await say(`${e.name}의 공격! ${josa(t.name, '은는')} ${r.dmg}의 피해를 입었다!${Math.random() < .5 ? ' "' + pick(HERO[t.id].say.hurt) + '"' : ''}`);
   }
@@ -1361,6 +1476,7 @@ async function endBattle(result) {
     const exp = B.enemies.reduce((a, e) => a + e.def.exp, 0);
     const coin = B.enemies.reduce((a, e) => a + e.def.coin, 0);
     S.coins += coin;
+    for (const e of B.enemies) S.dex[e.id] = (S.dex[e.id] || 0) + 1;
     if ((S.quest === 2 && map.id === 'field') || (S.quest >= 8 && S.repeat)) S.kills += B.enemies.length;
     await say(`승리! 경험치 ${exp}, 보수 ${coin}💰를 얻었다!`, 1000);
     for (const m of S.party) {
@@ -1428,7 +1544,7 @@ function redrawPanel() {
   panel.body.innerHTML = panel.render(panel.tab);
   updateHud();
 }
-function closePanel() { panel.el.hidden = true; mode = 'map'; }
+function closePanel() { stopFishing(); panel.el.hidden = true; mode = 'map'; }
 $('#panel-close').addEventListener('click', closePanel);
 panel.tabs.addEventListener('click', e => { const b = e.target.closest('button'); if (b) { panel.tab = b.dataset.tab; redrawPanel(); } });
 panel.body.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b && !b.disabled) panel.onClick(b.dataset, b); });
@@ -1461,7 +1577,15 @@ function useItemField(key, i) {
 }
 
 function openMenu() {
-  openPanel('메뉴', [['party', '🐹 동료'], ['items', '🎒 아이템'], ['quest', '📜 의뢰'], ['sys', '⚙️ 설정']], tab => {
+  openPanel('메뉴', [['party', '🐹 동료'], ['items', '🎒 아이템'], ['dex', '📖 도감'], ['quest', '📜 의뢰'], ['sys', '⚙️ 설정']], tab => {
+    if (tab === 'dex') {
+      const list = DEX.flatMap(([area, ids]) => ids.map(id => [area, id]));
+      const found = list.filter(([, id]) => S.dex[id]).length;
+      return `<div class="box">토벌한 몬스터 <b>${found}</b> / ${list.length}${found === list.length ? ' · 🏆 도감 완성!' : ''}</div><div class="dex">${list.map(([area, id]) => {
+        const e = EN[id], n = S.dex[id];
+        return `<div class="dex-c ${n ? '' : 'unknown'} ${e.boss ? 'boss' : ''}"><img src="img/${e.img}.png" alt=""><b>${n ? e.n : '???'}</b><small>${area}${n ? ` · ${n}회` : ''}</small>${n ? `<small>HP ${e.hp} · 공격 ${e.atk}</small>` : ''}</div>`;
+      }).join('')}</div>`;
+    }
     if (tab === 'party') {
       return `<div class="box muted">함께 다닐 동료는 최대 ${PARTY_MAX}명이에요. 쉬는 동료도 경험치를 절반 받아요.</div>` +
         S.party.map(m => memberCard(m).replace('</div>\n  </div>', `<div class="use-row"><button class="btn ${S.active.includes(m.id) ? 'pink' : 'white'}" data-a="toggle" data-id="${m.id}">${S.active.includes(m.id) ? '✅ 함께 가는 중' : '💤 쉬는 중 (눌러서 함께 가기)'}</button></div></div>\n  </div>`)).join('');
@@ -1479,9 +1603,10 @@ function openMenu() {
       return `<div class="box"><h3>지금 할 일</h3>${objective()}</div>
         <div class="box"><h3>이야기 진행</h3><ul class="quest-list">${qs.map(([n, q]) =>
           `<li class="${S.quest > n ? 'done' : S.quest === n ? 'now' : ''}">${S.quest > n ? '✅' : S.quest === n ? '▶' : '·'} ${q}</li>`).join('')}</ul></div>
-        <div class="box"><h3>동료 (${S.party.length}/7)</h3><ul class="quest-list">${[
+        <div class="box"><h3>동료 (${S.party.length}/${Object.keys(HERO).length})</h3><ul class="quest-list">${[
           ['usagi', '풀숲의 수상한 토끼 (풀숲 토벌 의뢰 중)'], ['momonga', '마을 연못가의 모몽가 (풀숲 토벌 의뢰 이후)'],
-          ['shisa', '라멘 가게의 시사 (숲의 주인 토벌 이후)'], ['kuri', '라멘 가게 앞 쿠리만쥬 (자격 시험 중)'], ['rakko', '마을의 랏코 (토벌 5급 합격 이후)']]
+          ['shisa', '라멘 가게의 시사 (숲의 주인 토벌 이후)'], ['kuri', '라멘 가게 앞 쿠리만쥬 (자격 시험 중)'], ['rakko', '마을의 랏코 (토벌 5급 합격 이후)'],
+          ['furuhon', '마을 서쪽의 고서점 주인 (자격 시험 중)'], ['pajama', '바닷가에서 공연 중인 무리'], ['pochette', '유적에서 길을 잃은 누군가']]
           .map(([id, hint]) => `<li>${S.flags[id] ? '✅ ' + HERO[id].name : '❔ ' + hint}</li>`).join('')}</ul></div>
         <div class="box muted">보수 ${fmt(S.coins)}💰 · 걸음 수 ${fmt(S.steps)} · 플레이 ${Math.floor(S.playTime / 60)}분</div>`;
     }
@@ -1506,7 +1631,7 @@ function openShop() {
   openPanel('도구점', [['items', '🎒 도구'], ['equip', '🗡️ 장비 강화']], tab => {
     let h = `<div class="box">보유 보수: <b>${fmt(S.coins)}💰</b></div>`;
     if (tab === 'items') {
-      h += Object.entries(ITEMS).map(([k, it]) => `<div class="card"><div class="ico">${it.icon}</div>
+      h += Object.entries(ITEMS).filter(([, it]) => it.shop !== false).map(([k, it]) => `<div class="card"><div class="ico">${it.icon}</div>
         <div class="main"><b>${it.name}</b> <span class="muted">보유 ${S.items[k]}</span><div class="muted">${it.desc}</div></div>
         <button class="btn yellow" data-a="buy" data-k="${k}" ${S.coins < it.price ? 'disabled' : ''}>사기<small>💰 ${it.price}</small></button></div>`).join('');
     } else {
@@ -1551,6 +1676,79 @@ function openRamen() {
   });
 }
 
+/* ---------- 낚시 ---------- */
+const CATCHES = [
+  { p: .45, name: '전갱이', icon: '🐟', item: 'fish' },
+  { p: .25, name: '새우', icon: '🦐', item: 'shrimp' },
+  { p: .05, name: '커다란 도미', icon: '🐡', item: 'tai' },
+  { p: .15, name: '반짝 조개', icon: '🐚', coin: true },
+  { p: .10, name: '낡은 장화', icon: '👢' },
+];
+const F = { phase: 'idle', pos: 0, dir: 1, zone: 40, raf: 0, timer: 0, last: 0, msg: '', ico: '🎣' };
+function stopFishing() {
+  cancelAnimationFrame(F.raf); clearTimeout(F.timer);
+  F.phase = 'idle';
+}
+function fishSet(msg, ico) {
+  F.msg = msg; if (ico) F.ico = ico;
+  const m = $('#fish-msg'), i = $('#fish-ico'), b = $('#fish-btn');
+  if (m) m.textContent = msg;
+  if (i) i.textContent = F.ico;
+  if (b) b.textContent = F.phase === 'idle' ? '🎣 던지기' : '❗ 낚아채기!';
+}
+function fishTick(now) {
+  const dt = Math.min(.05, (now - F.last) / 1000); F.last = now;
+  F.pos += F.dir * 140 * dt;
+  if (F.pos > 100) { F.pos = 100; F.dir = -1; } else if (F.pos < 0) { F.pos = 0; F.dir = 1; }
+  const n = $('#fish-needle'); if (n) n.style.left = F.pos + '%';
+  F.raf = requestAnimationFrame(fishTick);
+}
+function fishAction() {
+  if (F.phase === 'idle') {
+    F.phase = 'wait';
+    fishSet('찌를 던졌다… 입질을 기다리는 중', '🎣');
+    F.timer = setTimeout(() => {
+      F.phase = 'bite';
+      F.zone = rand(8, 74); F.pos = rand(0, 100);
+      const z = $('#fish-zone'); if (z) z.style.left = F.zone + '%';
+      fishSet('입질이 왔다! 초록 칸에서 낚아채!', '❗');
+      F.last = performance.now(); F.raf = requestAnimationFrame(fishTick);
+      F.timer = setTimeout(() => { stopFishing(); fishSet('놓쳤다… 물고기가 도망갔다', '💨'); }, 2600);
+    }, rand(800, 2200));
+  } else if (F.phase === 'wait') {
+    stopFishing();
+    fishSet('너무 서둘렀다! 물고기가 놀라서 도망갔다', '💦');
+  } else if (F.phase === 'bite') {
+    const hitZone = F.pos >= F.zone && F.pos <= F.zone + 18;
+    stopFishing();
+    if (!hitZone) { fishSet('아깝다! 타이밍이 어긋났다', '💦'); return; }
+    let r = Math.random(), c = CATCHES[0];
+    for (const x of CATCHES) { if ((r -= x.p) <= 0) { c = x; break; } }
+    S.fished++;
+    if (c.item) S.items[c.item]++;
+    let extra = '';
+    if (c.coin) { const v = 80 + activeParty()[0].lv * 5; S.coins += v; extra = ` (+${v}💰)`; }
+    fishSet(`${c.icon} ${josa(c.name, '을를')} 낚았다!${extra}${c.item ? ' → ' + ITEMS[c.item].name : ''}`, c.icon);
+    redrawPanel();
+  }
+}
+function openFishing() {
+  stopFishing();
+  F.msg = '바다에 찌를 던져 보자!'; F.ico = '🎣';
+  openPanel('바닷가 낚시', null, () => `
+    <div class="box" style="text-align:center">
+      <div class="fish-ico" id="fish-ico">${F.ico}</div>
+      <p id="fish-msg">${F.msg}</p>
+      <div class="fish-bar"><div class="fish-zone" id="fish-zone" style="left:${F.zone}%"></div><div class="fish-needle" id="fish-needle" style="left:${F.pos}%"></div></div>
+      <div class="row"><button class="btn blue" id="fish-btn" data-a="fish">${F.phase === 'idle' ? '🎣 던지기' : '❗ 낚아채기!'}</button></div>
+      <p class="muted">입질이 오면 바늘이 초록 칸에 있을 때 낚아채세요.</p>
+    </div>
+    <div class="box"><h3>가방 속 해산물</h3>
+      <p>🐟 구운 전갱이 ×${S.items.fish} · 🍤 새우튀김 ×${S.items.shrimp} · 🐡 도미 구이 ×${S.items.tai}</p>
+      <p class="muted">지금까지 ${S.fished}번 낚았어요. 해산물은 아이템으로 쓸 수 있어요.</p>
+    </div>`, d => { if (d.a === 'fish') fishAction(); });
+}
+
 /* ---------- 입력 ---------- */
 const KEYDIR = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right' };
 function press(dir) { if (!held.includes(dir)) held.push(dir); }
@@ -1562,6 +1760,7 @@ function actionKey() {
 window.addEventListener('keydown', e => {
   if (KEYDIR[e.key]) { if (mode === 'map') press(KEYDIR[e.key]); e.preventDefault(); return; }
   if (e.repeat) return;
+  if (mode === 'panel' && $('#fish-btn') && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); fishAction(); return; }
   if (e.key === ' ' || e.key === 'Enter' || e.key === 'z' || e.key === 'Z') { e.preventDefault(); actionKey(); }
   else if (e.key === 'Escape' || e.key === 'x' || e.key === 'X' || e.key === 'm' || e.key === 'M') {
     if (mode === 'panel') closePanel();

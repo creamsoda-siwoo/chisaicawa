@@ -289,3 +289,28 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 @media (hover: hover) and (pointer: fine) {
   #pad, #btn-a { opacity: .55; }
 }
+
+/* ===== 자동 전투 · 도감 · 낚시 ===== */
+#b-auto {
+  position: absolute; top: 8px; right: 8px; z-index: 3;
+  border: 2px solid var(--ink); border-radius: 999px; background: #fff;
+  padding: 3px 10px; font-size: 13px; box-shadow: var(--shadow);
+}
+#b-auto.on { background: var(--yellow-deep); }
+.dex { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.dex-c {
+  background: #fff; border: 2px solid var(--ink); border-radius: 12px; padding: 6px 4px;
+  display: flex; flex-direction: column; align-items: center; text-align: center; font-size: 12px; line-height: 1.3;
+}
+.dex-c img { height: 58px; max-width: 100%; object-fit: contain; margin-bottom: 3px; }
+.dex-c b { font-weight: normal; font-size: 13px; }
+.dex-c small { color: var(--ink-soft); font-size: 11px; }
+.dex-c.boss { background: #fff4f4; }
+.dex-c.unknown img { filter: brightness(0); opacity: .22; }
+.fish-ico { font-size: 46px; height: 58px; }
+.fish-bar {
+  position: relative; height: 26px; margin: 10px 4px 12px;
+  background: #cfe9f7; border: 2.5px solid var(--ink); border-radius: 999px; overflow: hidden;
+}
+.fish-zone { position: absolute; top: 0; bottom: 0; width: 18%; background: #8fdc7a; }
+.fish-needle { position: absolute; top: -2px; bottom: -2px; width: 5px; margin-left: -2px; background: #e8495f; border-radius: 3px; }
