@@ -45,6 +45,7 @@ const SPEAKERS = {
   shisa: { name: '시사', img: 'img/npc_shisa.png' },
   momonga: { name: '모몽가', img: 'img/npc_momonga.png' },
   master: { name: '라멘 가게 마스터' },
+  sphinx_n: { name: '스핑크스', img: 'img/mon_sphinx.png' },
   n: { name: '' },
 };
 
@@ -164,10 +165,20 @@ const EN = {
   elephant: { n: '악몽 코끼리', img: 'mon_elephant', hp: 95, atk: 25, def: 10, spd: 9, exp: 36, coin: 28 },
   boss1: { n: '숲의 주인', img: 'mon_pond', hp: 380, atk: 24, def: 9, spd: 7, exp: 150, coin: 200, boss: true, aoe: '고구마 던지기' },
   boss2: { n: '크고 강한 녀석', img: 'mon_deka', hp: 1100, atk: 34, def: 14, spd: 9, exp: 500, coin: 600, boss: true, aoe: '땅 울리기', twice: true },
+  puffer: { n: '부풀 복어', img: 'mon_puffer', hp: 160, atk: 40, def: 18, spd: 10, exp: 70, coin: 45 },
+  sunfish: { n: '개복치', img: 'mon_sunfish', hp: 220, atk: 36, def: 22, spd: 6, exp: 80, coin: 50 },
+  mermaid: { n: '꼬마 인어', img: 'mon_mermaid', hp: 130, atk: 44, def: 14, spd: 18, exp: 75, coin: 48 },
+  siren: { n: '세이렌', img: 'mon_siren', hp: 2600, atk: 46, def: 20, spd: 14, exp: 900, coin: 1200, boss: true, aoe: '세이렌의 노래' },
+  snake: { n: '뱀 석상', img: 'mon_snake', hp: 300, atk: 50, def: 30, spd: 8, exp: 120, coin: 70 },
+  rabbit: { n: '의태 토끼', img: 'mon_rabbit', hp: 240, atk: 56, def: 20, spd: 20, exp: 130, coin: 75 },
+  crier: { n: '울보 섬주민', img: 'mon_crier', hp: 280, atk: 52, def: 24, spd: 12, exp: 125, coin: 72 },
+  sphinx: { n: '스핑크스', img: 'mon_sphinx', hp: 4500, atk: 58, def: 26, spd: 16, exp: 2000, coin: 2500, boss: true, aoe: '수수께끼 광선', twice: true },
   rakko: { n: '랏코', img: 'npc_rakko', hp: 1400, atk: 36, def: 15, spd: 16, exp: 300, coin: 0, boss: true, aoe: '랭커의 일격' },
 };
 loadImg('boss1', 'img/mon_pond.png');
 loadImg('boss2', 'img/mon_deka.png');
+loadImg('siren', 'img/mon_siren.png');
+loadImg('sphinx', 'img/mon_sphinx.png');
 const enemyArt = d => `<img src="img/${d.img}.png" alt="">`;
 
 /* ---------- 맵 ---------- */
@@ -176,9 +187,11 @@ const THEME = {
   town: { grass: '#cdeeb0', dark: '#a9d68e', path: '#f2e4c0', crown: '#8fd07a', crown2: '#b9e6a6', bg: '#8fc27a', sky: ['#bfe6ff', '#eef9ff'], ground: '#a3d983' },
   field: { grass: '#c2e8a2', dark: '#9fd283', path: '#f0dfb4', crown: '#7cc46c', crown2: '#a7dc96', bg: '#7fb86c', sky: ['#bfe6ff', '#eef9ff'], ground: '#a3d983' },
   forest: { grass: '#a8d692', dark: '#86c070', path: '#e6d6a8', crown: '#5fae68', crown2: '#86c98a', bg: '#4f8a55', sky: ['#a9dcc2', '#e3f6ea'], ground: '#73ad63' },
+  beach: { grass: '#f6e7bb', dark: '#dcc68c', path: '#fff4da', crown: '#7cc46c', crown2: '#a7dc96', bg: '#8fd3f0', sky: ['#9fd6f4', '#ecf9ff'], ground: '#f2dfa8' },
+  ruins: { grass: '#ead5a6', dark: '#c9ad78', path: '#f7e8c8', crown: '#9cbf6a', crown2: '#c4dc96', bg: '#b8945e', sky: ['#f2d8a6', '#fff3dc'], ground: '#cfab70' },
   cave: { floor: '#aaa2b9', dark: '#958da6', wall: '#5f5872', wallTop: '#7d7592', bg: '#3d3849', sky: ['#5c5672', '#8e87a6'], ground: '#6e667b' },
 };
-const SOLID = new Set(['T', '~', '#', 'r']);
+const SOLID = new Set(['T', '~', '#', 'r', 'p']);
 
 const grid = (w, h, ch) => Array.from({ length: h }, () => Array(w).fill(ch));
 function rect(g, x, y, w, h, ch) { for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (g[j] && g[j][i] !== undefined) g[j][i] = ch; }
@@ -210,7 +223,8 @@ function buildMaps() {
     hl(g, 1, 23, 9, '=');
     vl(g, 4, 5, 8, '='); vl(g, 8, 5, 8, '='); vl(g, 13, 5, 8, '='); vl(g, 19, 5, 8, '=');
     rect(g, 4, 12, 5, 3, '~');
-    [[11, 12], [12, 14], [20, 14], [21, 11], [2, 14], [14, 15], [1, 11], [22, 15]].forEach(([x, y]) => g[y][x] = 'T');
+    [[11, 12], [13, 14], [20, 14], [21, 11], [2, 14], [14, 15], [1, 11], [22, 15]].forEach(([x, y]) => g[y][x] = 'T');
+    vl(g, 12, 10, 16, '=');
     scatter(g, r, 'f', .07, (x, y) => g[y][x] === '.' && !nearPath(g, x, y) && y > 4);
     M.town = {
       id: 'town', name: '마을', theme: 'town', w, h, g,
@@ -228,7 +242,10 @@ function buildMaps() {
         { id: 'rakko', x: 16, y: 12, img: 'rakko' },
         { id: 'momonga', x: 10, y: 13, img: 'momonga' },
       ],
-      exits: [{ x: 23, y: 9, to: 'field', tx: 1, ty: 10, label: '풀숲 ▶' }],
+      exits: [
+        { x: 23, y: 9, to: 'field', tx: 1, ty: 10, label: '풀숲 ▶' },
+        { x: 12, y: 16, to: 'beach', tx: 12, ty: 1, label: '▼ 바닷가', need: 6, gate: '바닷가는 토벌 5급 이상만 갈 수 있대. 노동 게시판의 특별 의뢰를 기다려 보자.' },
+      ],
     };
   }
   { // 풀숲
@@ -300,6 +317,42 @@ function buildMaps() {
       ],
     };
   }
+  { // 바닷가
+    const w = 30, h = 20, g = grid(w, h, '.'), r = mulberry(44);
+    border(g, 'T');
+    rect(g, 1, 14, w - 2, 5, '~'); hl(g, 0, w - 1, 19, '~');
+    vl(g, 12, 0, 8, '='); hl(g, 12, 25, 8, '='); vl(g, 22, 4, 8, '='); hl(g, 22, 29, 4, '=');
+    blobs(g, r, ',', 14, 2.4, '.');
+    scatter(g, r, 'r', .04, (x, y) => (g[y][x] === '.' || g[y][x] === ',') && !nearPath(g, x, y) && y < 13);
+    scatter(g, r, 'T', .03, (x, y) => g[y][x] === '.' && !nearPath(g, x, y) && y < 12);
+    rect(g, 25, 6, 4, 5, '.');
+    M.beach = {
+      id: 'beach', name: '바닷가', theme: 'beach', w, h, g,
+      enc: { rate: .11, on: ',', list: ['puffer', 'sunfish', 'mermaid'], max: 3 },
+      npcs: [],
+      boss: { id: 'siren', x: 26, y: 8, flag: 'siren', need: 6, img: 'siren' },
+      exits: [
+        { x: 12, y: 0, to: 'town', tx: 12, ty: 15, label: '▲ 마을' },
+        { x: 29, y: 4, to: 'ruins', tx: 1, ty: 10, label: '유적 ▶', need: 7, gate: '저 너머는 수수께끼의 유적… 세이렌을 토벌하고 게시판에 보고한 뒤에 가자.' },
+      ],
+    };
+  }
+  { // 수수께끼의 유적
+    const w = 30, h = 22, g = grid(w, h, '.'), r = mulberry(55);
+    border(g, 'p');
+    hl(g, 0, 14, 10, '='); vl(g, 14, 3, 17, '='); hl(g, 14, 24, 3, '='); hl(g, 5, 25, 17, '='); vl(g, 5, 10, 17, '=');
+    blobs(g, r, ',', 18, 2.6, '.');
+    scatter(g, r, 'p', .08, (x, y) => (g[y][x] === '.' || g[y][x] === ',') && !nearPath(g, x, y));
+    scatter(g, r, 'r', .03, (x, y) => g[y][x] === '.' && !nearPath(g, x, y));
+    rect(g, 23, 1, 6, 5, '.');
+    M.ruins = {
+      id: 'ruins', name: '수수께끼의 유적', theme: 'ruins', w, h, g,
+      enc: { rate: .12, on: ',', list: ['snake', 'rabbit', 'crier'], max: 3 },
+      npcs: [],
+      boss: { id: 'sphinx', x: 26, y: 3, flag: 'sphinx', need: 7, img: 'sphinx' },
+      exits: [{ x: 0, y: 10, to: 'beach', tx: 28, ty: 4, label: '◀ 바닷가' }],
+    };
+  }
   return M;
 }
 const MAPS = buildMaps();
@@ -314,7 +367,7 @@ function freshState() {
     active: ['chiikawa', 'hachiware'],
     items: { herb: 3, bigherb: 0, tea: 1, onigiri: 0 },
     quest: 0, weeds: 0, kills: 0, repeat: false,
-    flags: { usagi: false, boss1: false, boss2: false, momonga: false, kuri: false, shisa: false, rakko: false },
+    flags: { usagi: false, boss1: false, boss2: false, momonga: false, kuri: false, shisa: false, rakko: false, siren: false, sphinx: false },
     steps: 0, playTime: 0,
   };
 }
@@ -396,6 +449,13 @@ function drawTile(g, ch, x, y, th, r) {
         g.fillStyle = '#f2b33d'; g.beginPath(); g.arc(fx, fy, 2, 0, 7); g.fill();
       }
       break;
+    case 'p':
+      g.fillStyle = '#e3d3ad';
+      g.beginPath(); g.roundRect(X + T * .24, Y + T * .18, T * .52, T * .74, 3); g.fill(); g.stroke();
+      g.beginPath(); g.roundRect(X + T * .14, Y + T * .06, T * .72, T * .16, 3); g.fill(); g.stroke();
+      g.lineWidth = 1.5; g.strokeStyle = 'rgba(90,70,40,.45)';
+      g.beginPath(); g.moveTo(X + T * .4, Y + T * .26); g.lineTo(X + T * .4, Y + T * .86); g.moveTo(X + T * .6, Y + T * .26); g.lineTo(X + T * .6, Y + T * .86); g.stroke();
+      break;
     case 'r':
       g.fillStyle = '#b9b3c4'; g.beginPath(); g.ellipse(X + T / 2, Y + T * .6, T * .4, T * .32, 0, 0, 7); g.fill(); g.stroke();
       g.fillStyle = 'rgba(255,255,255,.4)'; g.beginPath(); g.ellipse(X + T * .4, Y + T * .48, 5, 3, -.4, 0, 7); g.fill();
@@ -457,7 +517,12 @@ function prerender(m) {
   const th = THEME[m.theme], r = mulberry(m.w * 131 + m.h);
   for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) drawTile(g, m.g[y][x], x, y, th, r);
   (m.buildings || []).forEach(b => drawBuilding(g, b));
-  m.exits.forEach(e => { if (e.label) label(g, e.label, e.x * T + T / 2 + (e.x === 0 ? 26 : -26), e.y * T - 6); });
+  m.exits.forEach(e => {
+    if (!e.label) return;
+    const dx = e.x === 0 ? 26 : e.x === m.w - 1 ? -26 : 0;
+    const y = e.y === 0 ? T + 14 : e.y === m.h - 1 ? e.y * T - 14 : e.y * T - 6;
+    label(g, e.label, e.x * T + T / 2 + dx, y);
+  });
   m.canvas = c;
 }
 
@@ -665,7 +730,10 @@ function objective() {
     case 2: return S.kills >= 5 ? '📌 노동 게시판에 보고하자' : `📌 풀숲의 키메라 토벌 (${S.kills}/5)`;
     case 3: return S.flags.boss1 ? '📌 노동 게시판에 보고하자' : '📌 깊은 숲의 「숲의 주인」 토벌';
     case 4: return S.flags.boss2 ? '📌 노동 게시판에 보고하자' : '📌 자격 시험: 동굴의 「크고 강한 녀석」 토벌';
-    default: return S.repeat ? (S.kills >= 10 ? '📌 노동 게시판에 보고하자' : `📌 오늘의 토벌 의뢰 (${S.kills}/10)`) : '⭐ 토벌 5급! 자유롭게 모험하자';
+    case 5: return '📌 노동 게시판에서 특별 의뢰를 받자';
+    case 6: return S.flags.siren ? '📌 노동 게시판에 보고하자' : '📌 특별 의뢰: 바닷가의 「세이렌」 토벌';
+    case 7: return S.flags.sphinx ? '📌 노동 게시판에 보고하자' : '📌 특별 의뢰: 유적의 「스핑크스」 토벌';
+    default: return S.repeat ? (S.kills >= 10 ? '📌 노동 게시판에 보고하자' : `📌 오늘의 토벌 의뢰 (${S.kills}/10)`) : '⭐ 토벌 3급! 자유롭게 모험하자';
   }
 }
 
@@ -798,6 +866,26 @@ const EVENTS = {
         updateHud(); save();
       }
     },
+    async siren() {
+      if (S.quest < 6) { await talk([['n', '바위 위에서 누군가 노래를 흥얼거리고 있다…']]); return; }
+      await talk([['n', '아름다운… 아니, 묘하게 귀에 맴도는 노랫소리가 들린다!'], ['hachiware', '이 노래를 계속 들으면 위험하대!'], ['usagi', '우라!!']]);
+      const won = await startBattle(['siren', 'mermaid', 'mermaid'], { boss: true });
+      if (won) {
+        S.flags.siren = true;
+        await talk([['chiikawa', '…해냈다!'], ['hachiware', '노랫소리가 멈췄어! 게시판에 보고하러 가자!']]);
+        updateHud(); save();
+      }
+    },
+    async sphinx() {
+      if (S.quest < 7) { await talk([['n', '거대한 석상이 이쪽을 지그시 보고 있다…']]); return; }
+      await talk([['sphinx_n', '…아침에는 네 발, 낮에는 두 발, 밤에는…'], ['chiikawa', '…?!'], ['usagi', '하아?'], ['hachiware', '수수께끼 따위 몰라도 돼! 다 같이 덤비자!']]);
+      const won = await startBattle(['sphinx'], { boss: true });
+      if (won) {
+        S.flags.sphinx = true;
+        await talk([['n', '스핑크스는 만족스러운 듯 고개를 끄덕이고 잠잠해졌다.'], ['hachiware', '우리가 해냈어…! 이건 대단한 보고가 되겠다!']]);
+        updateHud(); save();
+      }
+    },
     async boss2() {
       await talk([['n', '동굴 깊은 곳에서 거대한 그림자가 일어섰다…'], ['chiikawa', '으… 크, 크다…'], ['usagi', '우라!!'], ['hachiware', '이게 자격 시험…! 어떻게든 될 거야!']]);
       const won = await startBattle(['boss2'], { boss: true });
@@ -885,6 +973,36 @@ async function boardEvent() {
       ['n', '~ 축하합니다! 이야기 클리어! ~\n앞으로도 자유롭게 토벌을 즐길 수 있어요.'],
     ]);
     S.quest = 5; S.repeat = false;
+  } else if (q === 5) {
+    await talk([
+      ['armor', '토벌 5급인 여러분께 특별 의뢰가 들어왔어요.'],
+      ['armor', '마을 남쪽 바닷가에서 이상한 노랫소리가 들린대요. 노래를 듣고 돌아온 사람들이 며칠이나 흥얼거림을 멈추지 못한다고…'],
+      ['hachiware', '그거 혹시… 세이렌?!'],
+      ['armor', '네. 바닷가의 「세이렌」을 토벌해 주세요. 마을 아래쪽 길로 갈 수 있어요.'],
+    ]);
+    S.quest = 6; S.repeat = false;
+  } else if (q === 6) {
+    if (!S.flags.siren) { await talk([['armor', '세이렌은 바닷가 오른쪽 바위 근처에 있대요. 꼬마 인어들도 조심하세요!']]); return; }
+    S.coins += 1500;
+    await talk([
+      ['armor', '세이렌 토벌 성공! 보수 1500💰, 그리고 오늘부터 「토벌 4급」이에요!'],
+      ['chiikawa', '…!! 4급…!'],
+      ['armor', '그런데 세이렌이 말하길, 바닷가 너머 「수수께끼의 유적」에 스핑크스가 깨어났대요.'],
+      ['usagi', '야하!'],
+      ['armor', '마지막 특별 의뢰예요. 유적의 「스핑크스」를 토벌해 주세요. 정말 강하니까 단단히 준비하세요!'],
+    ]);
+    S.quest = 7;
+  } else if (q === 7) {
+    if (!S.flags.sphinx) { await talk([['armor', '스핑크스는 유적 오른쪽 위에 있대요. 한 번에 두 번씩 움직인다니 회복을 잊지 마세요!']]); return; }
+    S.coins += 3000;
+    await talk([
+      ['armor', '스, 스핑크스까지…! 보수 3000💰! 그리고 「토벌 3급」 승급이에요!'],
+      ['hachiware', '토벌 3급이래, 치이카와!'],
+      ['chiikawa', '와아…!! (울먹)'],
+      ['rakko', '…제법이군.'],
+      ['n', '~ 특별 의뢰 클리어! ~\n오늘의 토벌 의뢰는 계속 받을 수 있어요.'],
+    ]);
+    S.quest = 8; S.repeat = false;
   } else {
     if (!S.repeat) {
       await talk([['armor', '오늘의 토벌 의뢰예요. 어디서든 키메라를 10마리 토벌해 주세요.']]);
@@ -1243,7 +1361,7 @@ async function endBattle(result) {
     const exp = B.enemies.reduce((a, e) => a + e.def.exp, 0);
     const coin = B.enemies.reduce((a, e) => a + e.def.coin, 0);
     S.coins += coin;
-    if ((S.quest === 2 && map.id === 'field') || (S.quest >= 5 && S.repeat)) S.kills += B.enemies.length;
+    if ((S.quest === 2 && map.id === 'field') || (S.quest >= 8 && S.repeat)) S.kills += B.enemies.length;
     await say(`승리! 경험치 ${exp}, 보수 ${coin}💰를 얻었다!`, 1000);
     for (const m of S.party) {
       if (B.heroes.some(h => h.m === m)) continue;
@@ -1357,10 +1475,10 @@ function openMenu() {
       </div></div>`).join('');
     }
     if (tab === 'quest') {
-      const qs = ['풀뽑기 의뢰', '풀숲의 키메라 토벌', '숲의 주인 토벌', '토벌 자격 시험'];
+      const qs = [[1, '풀뽑기 의뢰'], [2, '풀숲의 키메라 토벌'], [3, '숲의 주인 토벌'], [4, '토벌 자격 시험'], [6, '특별 의뢰: 바닷가의 세이렌'], [7, '특별 의뢰: 유적의 스핑크스']];
       return `<div class="box"><h3>지금 할 일</h3>${objective()}</div>
-        <div class="box"><h3>이야기 진행</h3><ul class="quest-list">${qs.map((q, i) =>
-          `<li class="${S.quest > i + 1 ? 'done' : S.quest === i + 1 ? 'now' : ''}">${S.quest > i + 1 ? '✅' : S.quest === i + 1 ? '▶' : '·'} ${q}</li>`).join('')}</ul></div>
+        <div class="box"><h3>이야기 진행</h3><ul class="quest-list">${qs.map(([n, q]) =>
+          `<li class="${S.quest > n ? 'done' : S.quest === n ? 'now' : ''}">${S.quest > n ? '✅' : S.quest === n ? '▶' : '·'} ${q}</li>`).join('')}</ul></div>
         <div class="box"><h3>동료 (${S.party.length}/7)</h3><ul class="quest-list">${[
           ['usagi', '풀숲의 수상한 토끼 (풀숲 토벌 의뢰 중)'], ['momonga', '마을 연못가의 모몽가 (풀숲 토벌 의뢰 이후)'],
           ['shisa', '라멘 가게의 시사 (숲의 주인 토벌 이후)'], ['kuri', '라멘 가게 앞 쿠리만쥬 (자격 시험 중)'], ['rakko', '마을의 랏코 (토벌 5급 합격 이후)']]
