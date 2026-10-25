@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#fff7ea">
+<title>먼작귀 방치 토벌대</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header id="hud">
+    <div class="hud-item"><span class="hud-ico">💰</span><b id="coins">0</b></div>
+    <div class="hud-item"><span class="hud-ico">⚔️</span><b id="dps">0</b><small>/초</small></div>
+    <div class="hud-item"><span class="hud-ico">🌿</span><b id="income">0</b><small>/초</small></div>
+    <div class="hud-item rank" id="rank">무자격</div>
+  </header>
+
+  <section id="field">
+    <div id="deco"></div>
+    <div id="stage-box">
+      <div id="stage-name"></div>
+      <div id="stage-progress"></div>
+    </div>
+    <div id="boss-bar" hidden><div id="boss-fill"></div><span id="boss-time"></span></div>
+    <button id="advance-btn" hidden>▶ 보스 재도전!</button>
+    <div id="buff-icons"></div>
+    <div id="party"></div>
+    <div id="enemy">
+      <div id="enemy-name"></div>
+      <div class="hpbar"><div id="hp-fill"></div><span id="hp-text"></span></div>
+      <div id="monster"></div>
+    </div>
+    <div id="floats"></div>
+    <div id="skills"></div>
+    <div id="toast"></div>
+    <div id="tap-hint">화면을 톡톡! 눌러서 같이 싸우자</div>
+  </section>
+
+  <nav id="tabs">
+    <button data-tab="heroes" class="on">🐹<span>동료</span></button>
+    <button data-tab="jobs">🌿<span>노동</span></button>
+    <button data-tab="food">🍜<span>먹거리</span></button>
+    <button data-tab="exam">📜<span>자격시험</span></button>
+    <button data-tab="info">📖<span>정보</span></button>
+  </nav>
+
+  <section id="panel"></section>
+</div>
+
+<div id="modal" hidden>
+  <div class="modal-card">
+    <div id="modal-body"></div>
+    <div id="modal-btns"></div>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
