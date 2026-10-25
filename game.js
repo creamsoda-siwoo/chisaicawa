@@ -1,120 +1,75 @@
 'use strict';
 /* =========================================================
- *  먼작귀 방치 토벌대
- *  치이카와 · 하치와레 · 우사기와 함께 풀뽑기로 보수를 벌고
- *  키메라를 토벌하며 토벌 자격 시험에 도전하는 방치형 RPG
+ *  먼작귀 RPG ~ 토벌 자격 시험 대작전 ~
+ *  치이카와 · 하치와레 · 우사기와 함께 마을과 풀숲, 숲, 동굴을
+ *  모험하며 노동 게시판의 의뢰를 해결하는 턴제 RPG
  * ========================================================= */
 
 const $ = s => document.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 const rand = (a, b) => a + Math.random() * (b - a);
+const randi = (a, b) => Math.floor(rand(a, b + 1));
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
-
-/* ---------- 숫자 표기 (만/억/조…) ---------- */
-const KUNITS = [[1e44, '재'], [1e40, '정'], [1e36, '간'], [1e32, '구'], [1e28, '양'], [1e24, '자'],
-  [1e20, '해'], [1e16, '경'], [1e12, '조'], [1e8, '억'], [1e4, '만']];
-function fmt(n) {
-  if (!isFinite(n)) return '∞';
-  if (n < 0) return '-' + fmt(-n);
-  if (n < 10 && n % 1) return n.toFixed(1);
-  if (n < 10000) return Math.floor(n).toLocaleString('ko-KR');
-  if (n >= 1e48) return n.toExponential(2).replace('e+', 'e');
-  for (const [v, u] of KUNITS) {
-    if (n >= v) {
-      const x = n / v;
-      return (x < 10 ? x.toFixed(2) : x < 100 ? x.toFixed(1) : Math.floor(x)) + u;
-    }
-  }
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function mulberry(seed) {
+  return () => {
+    seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
 }
-function fmtTime(sec) {
-  sec = Math.floor(sec);
-  const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
-  if (h) return `${h}시간 ${m}분`;
-  if (m) return `${m}분 ${s}초`;
-  return `${s}초`;
+/* 받침에 따라 조사 고르기: josa('치이카와','은는') → 치이카와는 */
+function josa(w, pair) {
+  const c = w.charCodeAt(w.length - 1);
+  const has = c >= 0xAC00 && c <= 0xD7A3 && (c - 0xAC00) % 28 !== 0;
+  return w + (has ? pair[0] : pair[1]);
 }
+function fmt(n) { return Math.floor(n).toLocaleString('ko-KR'); }
 
-/* ---------- 캐릭터 그림 (SVG) ---------- */
-let svgUid = 0;
+/* ---------- 그림 ---------- */
 const INK = '#2b2522';
+const XMLNS = 'xmlns="http://www.w3.org/2000/svg"';
+const svgUrl = s => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
 
-function chiikawaSVG() {
-  return `<svg viewBox="0 0 100 100">
-  <circle cx="27" cy="25" r="9.5" fill="#fff" stroke="${INK}" stroke-width="3.2"/>
-  <circle cx="73" cy="25" r="9.5" fill="#fff" stroke="${INK}" stroke-width="3.2"/>
-  <path d="M33 82 L32 95 Q36 98 40 95 L41 84" fill="#fff" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M59 84 L60 95 Q64 98 68 95 L67 82" fill="#fff" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
-  <ellipse cx="50" cy="57" rx="38" ry="33" fill="#fff" stroke="${INK}" stroke-width="3.2"/>
-  <path d="M14 63 Q7 68 12 75" fill="#fff" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>
-  <path d="M86 63 Q93 68 88 75" fill="#fff" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>
-  <path d="M32 42 Q36.5 39.5 41 41.5" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>
-  <path d="M59 41.5 Q63.5 39.5 68 42" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>
-  <ellipse cx="38" cy="53" rx="4.8" ry="5.6" fill="${INK}"/>
-  <ellipse cx="62" cy="53" rx="4.8" ry="5.6" fill="${INK}"/>
-  <circle cx="39.6" cy="51" r="1.8" fill="#fff"/><circle cx="63.6" cy="51" r="1.8" fill="#fff"/>
-  <path d="M35.6 55.6 Q38 57.4 40.4 55.6" fill="none" stroke="#fff" stroke-width="1.1"/>
-  <path d="M59.6 55.6 Q62 57.4 64.4 55.6" fill="none" stroke="#fff" stroke-width="1.1"/>
-  <ellipse cx="24" cy="63" rx="8" ry="4.8" fill="#f7b6c4"/>
-  <ellipse cx="76" cy="63" rx="8" ry="4.8" fill="#f7b6c4"/>
-  <path d="M20.5 61 l-1.5 4 M24 61 l-1.5 4 M27.5 61 l-1.5 4 M72.5 61 l-1.5 4 M76 61 l-1.5 4 M79.5 61 l-1.5 4" stroke="#c4637d" stroke-width="1.3" stroke-linecap="round"/>
-  <path d="M47.5 64 Q48 68 50 68.5 Q52 68 52.5 64Z" fill="#f28ca3" stroke="${INK}" stroke-width="1.3"/>
-  <path d="M44 61 Q47 65 50 62 Q53 65 56 61" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+function armorSVG() {
+  return `<svg ${XMLNS} viewBox="0 0 100 100">
+  <path d="M50 20 Q50 4 68 6 Q60 12 57 21Z" fill="#e57373" stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M30 94 L31 66 L69 66 L70 94Z" fill="#c4cad3" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M40 72 L60 72 M40 80 L60 80" stroke="${INK}" stroke-width="2" opacity=".4"/>
+  <ellipse cx="50" cy="46" rx="27" ry="26" fill="#e1e5ec" stroke="${INK}" stroke-width="3"/>
+  <rect x="29" y="40" width="42" height="11" rx="5.5" fill="#3a3540"/>
+  <circle cx="41" cy="45.5" r="2.2" fill="#fff"/><circle cx="59" cy="45.5" r="2.2" fill="#fff"/>
+  <ellipse cx="33" cy="58" rx="5" ry="3" fill="#f7b6c4"/><ellipse cx="67" cy="58" rx="5" ry="3" fill="#f7b6c4"/>
+  <path d="M38 30 Q50 25 62 30" fill="none" stroke="#fff" stroke-width="2.5" opacity=".7" stroke-linecap="round"/>
+</svg>`;
+}
+function kuriSVG() {
+  return `<svg ${XMLNS} viewBox="0 0 100 100">
+  <path d="M50 12 Q82 40 84 66 Q82 94 50 94 Q18 94 16 66 Q18 40 50 12Z" fill="#b97a4c" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M17 64 Q50 76 83 64 Q82 94 50 94 Q18 94 17 64Z" fill="#edcf9f" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M40 26 Q46 20 50 14" stroke="#fff" stroke-width="2.5" fill="none" opacity=".5" stroke-linecap="round"/>
+  <circle cx="40" cy="52" r="3.6" fill="${INK}"/><circle cx="60" cy="52" r="3.6" fill="${INK}"/>
+  <path d="M34 44 L45 46 M66 44 L55 46" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M42 62 Q50 58 58 62" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>
+  <ellipse cx="30" cy="60" rx="5" ry="3" fill="#f39a9a"/><ellipse cx="70" cy="60" rx="5" ry="3" fill="#f39a9a"/>
+</svg>`;
+}
+function rakkoSVG() {
+  return `<svg ${XMLNS} viewBox="0 0 100 100">
+  <circle cx="28" cy="26" r="7" fill="#9b7356" stroke="${INK}" stroke-width="3"/>
+  <circle cx="72" cy="26" r="7" fill="#9b7356" stroke="${INK}" stroke-width="3"/>
+  <path d="M26 92 Q22 66 32 60 L68 60 Q78 66 74 92Z" fill="#9b7356" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
+  <ellipse cx="50" cy="44" rx="28" ry="24" fill="#9b7356" stroke="${INK}" stroke-width="3"/>
+  <ellipse cx="50" cy="50" rx="20" ry="15" fill="#efdcc4"/>
+  <circle cx="40" cy="42" r="3.4" fill="${INK}"/><circle cx="60" cy="42" r="3.4" fill="${INK}"/>
+  <ellipse cx="50" cy="50" rx="4" ry="3" fill="${INK}"/>
+  <path d="M50 53 L50 57 M44 58 Q50 61 56 58" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>
+  <path d="M30 50 L40 51 M30 55 L40 54 M70 50 L60 51 M70 55 L60 54" stroke="${INK}" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M30 60 L70 60" stroke="#e8495f" stroke-width="5" stroke-linecap="round"/>
 </svg>`;
 }
 
-function hachiwareSVG() {
-  const id = 'hw' + (svgUid++);
-  const BLUE = '#78acd3';
-  return `<svg viewBox="0 0 100 100">
-  <defs><clipPath id="${id}"><ellipse cx="50" cy="57" rx="38" ry="33"/></clipPath></defs>
-  <path d="M15 44 L19 11 Q21 9 24 11 L44 27Z" fill="${BLUE}" stroke="${INK}" stroke-width="3.2" stroke-linejoin="round"/>
-  <path d="M85 44 L81 11 Q79 9 76 11 L56 27Z" fill="${BLUE}" stroke="${INK}" stroke-width="3.2" stroke-linejoin="round"/>
-  <path d="M82 78 Q97 74 95 61 Q93 56 89 59 Q90 70 79 72Z" fill="${BLUE}" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M33 82 L32 95 Q36 98 40 95 L41 84" fill="#fff" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M59 84 L60 95 Q64 98 68 95 L67 82" fill="#fff" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/>
-  <ellipse cx="50" cy="57" rx="38" ry="33" fill="#fff"/>
-  <path clip-path="url(#${id})" d="M0 52 Q4 20 50 18 Q96 20 100 52 Q86 42 70 40 Q57 38 50 30 Q43 38 30 40 Q14 42 0 52Z" fill="${BLUE}" stroke="${INK}" stroke-width="3"/>
-  <ellipse cx="50" cy="57" rx="38" ry="33" fill="none" stroke="${INK}" stroke-width="3.2"/>
-  <path d="M15 66 Q8 70 12 76" fill="#fff" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>
-  <path d="M85 66 Q92 70 88 76" fill="#fff" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>
-  <path d="M35 46 Q37 45 39 46 M61 46 Q63 45 65 46" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>
-  <ellipse cx="38" cy="55" rx="4.8" ry="5.6" fill="${INK}"/>
-  <ellipse cx="62" cy="55" rx="4.8" ry="5.6" fill="${INK}"/>
-  <circle cx="39.6" cy="53" r="1.8" fill="#fff"/><circle cx="63.6" cy="53" r="1.8" fill="#fff"/>
-  <path d="M35.6 57.6 Q38 59.4 40.4 57.6 M59.6 57.6 Q62 59.4 64.4 57.6" fill="none" stroke="#fff" stroke-width="1.1"/>
-  <ellipse cx="24" cy="65" rx="8" ry="4.8" fill="#f7b6c4"/>
-  <ellipse cx="76" cy="65" rx="8" ry="4.8" fill="#f7b6c4"/>
-  <path d="M20.5 63 l-1.5 4 M24 63 l-1.5 4 M27.5 63 l-1.5 4 M72.5 63 l-1.5 4 M76 63 l-1.5 4 M79.5 63 l-1.5 4" stroke="#c4637d" stroke-width="1.3" stroke-linecap="round"/>
-  <path d="M43.5 63 Q46.7 67.5 50 63.5 Q53.3 67.5 56.5 63" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>`;
-}
-
-function usagiSVG() {
-  const L = '#5b3a29', F = '#fff2bf';
-  return `<svg viewBox="0 0 100 100">
-  <g transform="rotate(-10 40 30)">
-    <ellipse cx="40" cy="18" rx="7.5" ry="20" fill="${F}" stroke="${L}" stroke-width="3"/>
-    <ellipse cx="40" cy="19" rx="3.2" ry="14" fill="#f5b5c3"/>
-  </g>
-  <g transform="rotate(8 58 30)">
-    <ellipse cx="58" cy="17" rx="7.5" ry="20" fill="${F}" stroke="${L}" stroke-width="3"/>
-    <ellipse cx="58" cy="18" rx="3.2" ry="14" fill="#f5b5c3"/>
-  </g>
-  <path d="M36 82 L35 94 Q39 97 43 94 L44 85" fill="${F}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M56 85 L57 94 Q61 97 65 94 L64 82" fill="${F}" stroke="${L}" stroke-width="3" stroke-linejoin="round"/>
-  <ellipse cx="50" cy="60" rx="35" ry="31" fill="${F}" stroke="${L}" stroke-width="3.2"/>
-  <path d="M18 68 Q11 72 15 78" fill="${F}" stroke="${L}" stroke-width="3" stroke-linecap="round"/>
-  <path d="M82 64 Q89 60 88 54" fill="${F}" stroke="${L}" stroke-width="3" stroke-linecap="round"/>
-  <path d="M29 47 Q33 38 42 36 M71 47 Q67 38 58 36" fill="none" stroke="${L}" stroke-width="2.2" stroke-linecap="round"/>
-  <circle cx="40" cy="57" r="4.2" fill="${L}"/><circle cx="60" cy="57" r="4.2" fill="${L}"/>
-  <circle cx="41.3" cy="55.5" r="1.5" fill="#fff"/><circle cx="61.3" cy="55.5" r="1.5" fill="#fff"/>
-  <ellipse cx="28" cy="66" rx="7" ry="4.4" fill="#f5b5c3"/>
-  <ellipse cx="72" cy="66" rx="7" ry="4.4" fill="#f5b5c3"/>
-  <path d="M25 64 l-1.3 3.6 M28 64 l-1.3 3.6 M31 64 l-1.3 3.6 M69 64 l-1.3 3.6 M72 64 l-1.3 3.6 M75 64 l-1.3 3.6" stroke="#c4637d" stroke-width="1.2" stroke-linecap="round"/>
-  <path d="M45 63 Q47.5 67 50 63.5 Q52.5 67 55 63" fill="none" stroke="${L}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>`;
-}
-
-/* ---------- 몬스터 그림 (SVG) ---------- */
 function monsterSVG(def, boss) {
   const c = def.c, s = INK;
   const eye = (x, y, r = 4.5) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${s}"/><circle cx="${x + r * .35}" cy="${y - r * .35}" r="${r * .35}" fill="#fff"/>`;
@@ -129,13 +84,12 @@ function monsterSVG(def, boss) {
         ${eye(40, 56)}${eye(60, 56)}${brows(50)}${teeth(68)}`;
       break;
     case 'spiky': {
-      let pts = [];
+      const pts = [];
       for (let i = 0; i < 14; i++) {
         const a = Math.PI * 2 * i / 14 - Math.PI / 2, r = i % 2 ? 30 : 42;
         pts.push((50 + Math.cos(a) * r).toFixed(1) + ',' + (58 + Math.sin(a) * r * .9).toFixed(1));
       }
-      g = `<polygon points="${pts.join(' ')}" fill="${c}" ${st}/>
-        <circle cx="50" cy="60" r="24" fill="${c}"/>
+      g = `<polygon points="${pts.join(' ')}" fill="${c}" ${st}/><circle cx="50" cy="60" r="24" fill="${c}"/>
         ${eye(41, 56)}${eye(59, 56)}${brows(50, 9)}${teeth(67)}`;
       break;
     }
@@ -145,14 +99,6 @@ function monsterSVG(def, boss) {
         <circle cx="32" cy="42" r="6" fill="#fff"/><circle cx="56" cy="34" r="5" fill="#fff"/><circle cx="72" cy="50" r="5.5" fill="#fff"/>
         ${eye(44, 78, 3.5)}${eye(56, 78, 3.5)}
         <path d="M46 86 Q50 83 54 86" fill="none" stroke="${s}" stroke-width="2" stroke-linecap="round"/>`;
-      break;
-    case 'fish':
-      g = `<path d="M74 58 L96 40 L94 78Z" fill="${c}" ${st}/>
-        <ellipse cx="46" cy="60" rx="36" ry="26" fill="${c}" ${st}/>
-        <path d="M40 36 Q50 22 62 36" fill="${c}" ${st}/>
-        <path d="M58 48 Q62 60 58 72" fill="none" stroke="${s}" stroke-width="2" opacity=".6"/>
-        ${eye(30, 54, 6)}
-        <path d="M14 66 Q22 70 30 66" fill="none" stroke="${s}" stroke-width="2.4" stroke-linecap="round"/>`;
       break;
     case 'bat':
       g = `<path d="M30 56 Q14 36 2 48 Q10 54 8 64 Q18 60 22 70Z" fill="${c}" ${st}/>
@@ -185,853 +131,1334 @@ function monsterSVG(def, boss) {
         <path d="M30 72 L70 72 M32 80 L68 80" stroke="${s}" stroke-width="2" opacity=".5"/>`;
       break;
   }
-  const crown = boss ? `<path d="M34 16 L38 2 L44 12 L50 0 L56 12 L62 2 L66 16Z" fill="#ffd34d" stroke="${s}" stroke-width="2.4" stroke-linejoin="round" transform="translate(0,-6)"/>` : '';
-  return `<svg viewBox="0 0 100 100">${g}${crown}</svg>`;
+  const crown = boss ? `<path d="M34 10 L38 -4 L44 6 L50 -6 L56 6 L62 -4 L66 10Z" fill="#ffd34d" stroke="${s}" stroke-width="2.4" stroke-linejoin="round"/>` : '';
+  return `<svg ${XMLNS} viewBox="0 -8 100 108">${g}${crown}</svg>`;
 }
 
-/* ---------- 게임 데이터 ---------- */
-const HEROES = [
-  {
-    id: 'chiikawa', name: '치이카와', svg: chiikawaSVG,
-    baseDmg: 1, interval: 1.0, baseCost: 10,
-    desc: '작고 귀여운 녀석. 겁이 많고 잘 울지만, 토벌도 풀뽑기도 열심히 한다.',
-    lines: ['와!', '야ー!', '으…', '후에…', '…!!', '해냈다!', '(꾸벅)', '하아아…', '토벌…!'],
-    skill: { name: '울먹 각성!', desc: '10초 동안 치명타 확률 +50%', dur: 10, cd: 60, line: '야ー!! 야ー!!' },
-  },
-  {
-    id: 'hachiware', name: '하치와레', svg: hachiwareSVG,
-    baseDmg: 6, interval: 1.2, baseCost: 60,
-    desc: '긍정적인 고양이. 말을 잘하고 기타 연주가 특기. 언제나 친구를 응원한다.',
-    lines: ['어떻게든 될 거야~!', '치이카와, 괜찮아!', '와~ 대단해!', '오늘도 힘내자!', '보수 받으면 뭐 먹을까?', '맛있는 거 먹자~!', '우리라면 할 수 있어!'],
-    skill: { name: '어떻게든 될 거야!', desc: '15초 동안 모두의 공격 속도 2배', dur: 15, cd: 90, line: '어떻게든 되어라ー!!' },
-  },
-  {
-    id: 'usagi', name: '우사기', svg: usagiSVG,
-    baseDmg: 25, interval: 0.55, baseCost: 900,
-    desc: '예측불가 토끼. 엄청난 체력과 행동력으로 무엇이든 해치운다.',
-    lines: ['우라!', '야하!', '후루루루루', '하아?', '우라라라!', '프르르르르', '야ー하ー!', '이야아아!'],
-    skill: { name: '우라!! 야하!!', desc: '즉시 전체 DPS×30의 강력한 일격', dur: 0, cd: 45, line: '우라ー!! 야하ー!!' },
-  },
-];
-const HERO_BY = Object.fromEntries(HEROES.map(h => [h.id, h]));
-const HERO_R = 1.09;
-const SKILL_LV = 10;
+const IMG = {};
+function loadImg(key, src) { const i = new Image(); i.src = src; IMG[key] = i; return i; }
+['chiikawa', 'hachiware', 'usagi'].forEach(k => loadImg(k, `img/${k}.png`));
+loadImg('armor', svgUrl(armorSVG()));
+loadImg('kuri', svgUrl(kuriSVG()));
+loadImg('rakko', svgUrl(rakkoSVG()));
 
-const JOBS = [
-  { name: '풀뽑기', icon: '🌿', base: 0.6, cost: 15, desc: '노동 게시판의 기본 일. 뽑고 또 뽑자. 풀뽑기 검정도 있다던데…' },
-  { name: '포장마차 일손 돕기', icon: '🏮', base: 5, cost: 250, desc: '밤의 포장마차에서 꼬치 굽기. 쿠리만쥬 아저씨도 자주 온다.' },
-  { name: '하치와레의 기타 버스킹', icon: '🎸', base: 32, cost: 3000, desc: '광장에서 기타를 치며 노래하면 박수와 동전이 날아온다.' },
-  { name: '라멘 가게 아르바이트', icon: '🍜', base: 200, cost: 40000, desc: '라멘 가게 주방 일. 면 삶기는 타이밍이 생명!' },
-  { name: '갑옷씨 공방 굿즈 만들기', icon: '🧸', base: 1400, cost: 6e5, desc: '갑옷씨들과 함께 꼼꼼하게 핸드메이드 굿즈를 만든다.' },
-  { name: '랏코 선생님 도장 조교', icon: '🦦', base: 10000, cost: 9e6, desc: '최강 토벌자 랏코의 도장에서 수련생들을 돕는다.' },
-  { name: '수수께끼의 유적 조사', icon: '🗿', base: 80000, cost: 1.5e8, desc: '아무도 모르는 유적을 조사한다. 무언가 잠들어 있는 듯…' },
-];
-const JOB_R = 1.13;
+const SPEAKERS = {
+  chiikawa: { name: '치이카와', img: 'img/chiikawa.png' },
+  hachiware: { name: '하치와레', img: 'img/hachiware.png' },
+  usagi: { name: '우사기', img: 'img/usagi.png' },
+  armor: { name: '갑옷씨', img: IMG.armor.src },
+  kuri: { name: '쿠리만쥬', img: IMG.kuri.src },
+  rakko: { name: '랏코', img: IMG.rakko.src },
+  ramen: { name: '라멘 가게 주인' },
+  n: { name: '' },
+};
 
-const FOODS = [
-  { id: 'ramen', name: '라멘 한 그릇', icon: '🍜', desc: '뜨끈한 국물로 기운 충전! 공격력 ×2', short: '공격력×2' },
-  { id: 'pudding', name: '커다란 푸딩', icon: '🍮', desc: '탱글탱글 행복의 맛. 보수 ×2', short: '보수×2' },
-  { id: 'croquette', name: '갓 튀긴 고로케', icon: '🥔', desc: '바삭바삭! 모두의 공격 속도 ×1.5', short: '속도×1.5' },
-];
-const FOOD_DUR = 120, FOOD_CAP = 900;
-
-const AREAS = [
-  {
-    name: '풀숲', sky: ['#bfe6ff', '#eef9ff'], ground: '#a3d983', deco: ['🌿', '🌱', '🌼', '🌿'],
-    mons: [{ n: '작은 키메라', t: 'blob', c: '#c3b0ee' }, { n: '풀숲 덩어리', t: 'blob', c: '#94cc72' }, { n: '뾰족 키메라', t: 'spiky', c: '#f2a7a7' }],
-    boss: { n: '커다란 키메라', t: 'spiky', c: '#a585e6' },
+/* ---------- 데이터: 동료 ---------- */
+const HERO = {
+  chiikawa: {
+    name: '치이카와', hp: 40, mp: 10, atk: 9, def: 4, spd: 6,
+    g: { hp: 9, mp: 2, atk: 2.4, def: 1.5, spd: .8 },
+    skills: [
+      { id: 'thrust', name: '힘껏 찌르기', lv: 1, mp: 3, target: 'enemy', mult: 1.8, desc: '적 하나에게 1.8배 공격' },
+      { id: 'teary', name: '울먹 각성', lv: 4, mp: 4, target: 'self', desc: '3턴 동안 공격력 1.6배 · 치명타율 대폭 업' },
+      { id: 'tearstrike', name: '눈물의 일격', lv: 9, mp: 8, target: 'enemy', mult: 3.2, desc: '적 하나에게 3.2배 공격' },
+    ],
+    say: { atk: ['야ー!', '에잇!', '와!'], hurt: ['으…', '흐에…'] },
   },
-  {
-    name: '깊은 숲', sky: ['#a9dcc2', '#e3f6ea'], ground: '#73ad63', deco: ['🌲', '🍄', '🌳', '🌲'],
-    mons: [{ n: '버섯 요괴', t: 'mush', c: '#e86f6f' }, { n: '숲 키메라', t: 'blob', c: '#78b585' }, { n: '나무 그림자', t: 'blob', c: '#8c7a68' }],
-    boss: { n: '숲의 주인', t: 'mush', c: '#c0392b' },
+  hachiware: {
+    name: '하치와레', hp: 44, mp: 14, atk: 8, def: 5, spd: 7,
+    g: { hp: 9, mp: 3, atk: 2.1, def: 1.6, spd: .9 },
+    skills: [
+      { id: 'nantoka', name: '어떻게든 될 거야!', lv: 1, mp: 4, target: 'party', desc: '모두의 HP를 30% 회복' },
+      { id: 'song', name: '기타 응원송', lv: 5, mp: 6, target: 'party', desc: '3턴 동안 모두의 공격력 1.4배' },
+      { id: 'punch', name: '냥냥 연속 펀치', lv: 8, mp: 6, target: 'random', hits: 3, mult: .8, desc: '무작위 적에게 3번 공격' },
+    ],
+    say: { atk: ['에잇!', '받아라~!', '하앗!'], hurt: ['앗…!', '괜찮아…!'] },
   },
-  {
-    name: '강가', sky: ['#9fd6f4', '#ecf9ff'], ground: '#eadcae', deco: ['🪨', '💧', '🌾', '🐚'],
-    mons: [{ n: '물방울 키메라', t: 'blob', c: '#86c9f2' }, { n: '꽥꽥 물고기', t: 'fish', c: '#f5ac63' }, { n: '이끼 바위', t: 'rock', c: '#a7b89a' }],
-    boss: { n: '강의 큰 물고기', t: 'fish', c: '#e67e22' },
+  usagi: {
+    name: '우사기', hp: 52, mp: 10, atk: 12, def: 5, spd: 12,
+    g: { hp: 10, mp: 2, atk: 3, def: 1.5, spd: 1.2 },
+    skills: [
+      { id: 'ura', name: '우라!', lv: 1, mp: 4, target: 'all', mult: 1.1, desc: '적 전체에게 1.1배 공격' },
+      { id: 'yaha', name: '야하!!', lv: 1, mp: 7, target: 'enemy', mult: 2.6, desc: '적 하나에게 2.6배 공격' },
+      { id: 'fururu', name: '후루루루루', lv: 12, mp: 9, target: 'all', mult: 1.8, desc: '적 전체에게 1.8배 공격' },
+    ],
+    say: { atk: ['우라!', '야하!', '이야아!'], hurt: ['하아?!', '프르르…'] },
   },
-  {
-    name: '어두운 동굴', sky: ['#5c5672', '#8e87a6'], ground: '#6e667b', deco: ['🪨', '💎', '🕯️', '🪨'],
-    mons: [{ n: '박쥐 키메라', t: 'bat', c: '#8a75a0' }, { n: '바위 덩어리', t: 'rock', c: '#a3a3b0' }, { n: '동굴 키메라', t: 'spiky', c: '#7d9bb5' }],
-    boss: { n: '동굴의 거대 박쥐', t: 'bat', c: '#5a4870' },
-  },
-  {
-    name: '밤의 숲', sky: ['#2e4069', '#51628f'], ground: '#3e5d4c', deco: ['🌙', '✨', '🌲', '⭐'],
-    mons: [{ n: '그림자 요괴', t: 'blob', c: '#5a5a7a' }, { n: '눈 큰 키메라', t: 'eye', c: '#a982d4' }, { n: '밤버섯', t: 'mush', c: '#6e5aa8' }],
-    boss: { n: '밤의 키메라 왕', t: 'eye', c: '#7b3fa0' },
-  },
-  {
-    name: '수수께끼의 유적', sky: ['#f2d8a6', '#fff3dc'], ground: '#cfab70', deco: ['🗿', '🏛️', '🌵', '⚱️'],
-    mons: [{ n: '고대 갑주', t: 'armor', c: '#b8925f' }, { n: '유적 키메라', t: 'spiky', c: '#d6a85e' }, { n: '돌 파수꾼', t: 'rock', c: '#c2b08f' }],
-    boss: { n: '크고 강한 녀석', t: 'armor', c: '#8a5a2a' },
-  },
-];
-
-const KILLS_PER_STAGE = 10;
-const BOSS_TIME = 30, BOSS_HP = 10, BOSS_REWARD = 6;
-const EXAM_MIN = 40;
-const RANKS = [
-  { p: 0, n: '무자격' }, { p: 1, n: '토벌 5급' }, { p: 30, n: '토벌 4급' }, { p: 120, n: '토벌 3급' },
-  { p: 400, n: '토벌 2급' }, { p: 1200, n: '토벌 1급' }, { p: 4000, n: '특급 토벌자' },
-];
-const AUTO_SKILL_POINTS = 120;
-
-/* ---------- 상태 ---------- */
-const SAVE_KEY = 'chiikawa-idle-save-v1';
-function freshState() {
+};
+const expNext = lv => Math.round(10 * Math.pow(lv, 1.5));
+function heroStats(m) {
+  const h = HERO[m.id], L = m.lv - 1;
   return {
-    coins: 0, stage: 1, kills: 0, maxStage: 1, autoAdvance: true,
-    heroes: { chiikawa: 1, hachiware: 0, usagi: 0 },
-    tapLv: 1, jobs: JOBS.map(() => 0),
-    buffs: { ramen: 0, pudding: 0, croquette: 0 },
-    skillCd: { chiikawa: 0, hachiware: 0, usagi: 0 },
-    skillOn: { chiikawa: 0, hachiware: 0, usagi: 0 },
-    points: 0, prestiges: 0, autoSkill: false, buyMode: 1,
-    stats: { kills: 0, bossKills: 0, taps: 0, totalCoins: 0, bestStage: 1, playTime: 0 },
-    seenIntro: false, lastTime: Date.now(),
+    maxHp: Math.round(h.hp + h.g.hp * L), maxMp: Math.round(h.mp + h.g.mp * L),
+    atk: Math.round(h.atk + h.g.atk * L) + m.wpn * 3, def: Math.round(h.def + h.g.def * L) + m.charm * 2,
+    spd: Math.round(h.spd + h.g.spd * L),
   };
 }
-function merge(base, saved) {
-  for (const k in base) {
-    if (saved[k] === undefined) continue;
-    if (base[k] && typeof base[k] === 'object' && !Array.isArray(base[k])) merge(base[k], saved[k]);
-    else if (Array.isArray(base[k])) base[k] = base[k].map((v, i) => saved[k][i] ?? v);
-    else base[k] = saved[k];
-  }
-  return base;
-}
-let S = freshState();
-try {
-  const raw = localStorage.getItem(SAVE_KEY);
-  if (raw) S = merge(freshState(), JSON.parse(raw));
-} catch (e) { /* 저장소를 못 쓰면 새로 시작 */ }
-
-function save() {
-  S.lastTime = Date.now();
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { }
+function newMember(id, lv = 1) {
+  const m = { id, lv, exp: 0, wpn: 0, charm: 0, hp: 0, mp: 0 };
+  const st = heroStats(m);
+  m.hp = st.maxHp; m.mp = st.maxMp;
+  return m;
 }
 
-const rt = {
-  monster: null, respawn: 0, heroTimer: {}, bossTime: 0,
-  uiAcc: 0, saveAcc: 0, talkAcc: 4, floatCount: 0, lastHitFx: 0, lastAtkFx: {},
-  tab: 'heroes', lastReal: Date.now(), areaIdx: -1,
+/* ---------- 데이터: 아이템 · 적 ---------- */
+const ITEMS = {
+  herb: { name: '약초', icon: '🌿', desc: 'HP 40 회복', price: 12, hp: 40 },
+  bigherb: { name: '큰 약초', icon: '🍀', desc: 'HP 150 회복', price: 45, hp: 150 },
+  tea: { name: '보리차', icon: '🍵', desc: '기력(MP) 15 회복', price: 25, mp: 15 },
+  onigiri: { name: '주먹밥', icon: '🍙', desc: '쓰러진 동료를 HP 50%로 일으킨다', price: 80, revive: .5 },
 };
+const RAMEN_PRICE = 20;
+const wpnCost = lv => Math.round(40 * Math.pow(1.9, lv));
+const charmCost = lv => Math.round(35 * Math.pow(1.9, lv));
+const EQUIP_MAX = 8;
 
-/* ---------- 공식 ---------- */
-const geoCost = (base, r, lv, n) => base * Math.pow(r, lv) * (Math.pow(r, n) - 1) / (r - 1);
-function geoMax(base, r, lv, money) {
-  const a = base * Math.pow(r, lv);
-  if (money < a) return 0;
-  return Math.floor(Math.log(money * (r - 1) / a + 1) / Math.log(r));
-}
-function buyN(base, r, lv) {
-  if (S.buyMode === 'max') return Math.max(1, geoMax(base, r, lv, S.coins));
-  return S.buyMode;
-}
-
-const pointMult = () => 1 + 0.1 * S.points;
-const dmgMult = () => pointMult() * (S.buffs.ramen > 0 ? 2 : 1);
-const coinMult = () => pointMult() * (S.buffs.pudding > 0 ? 2 : 1);
-const speedMult = () => (S.skillOn.hachiware > 0 ? 2 : 1) * (S.buffs.croquette > 0 ? 1.5 : 1);
-const critChance = () => 0.05 + (S.skillOn.chiikawa > 0 ? 0.5 : 0);
-const CRIT_MULT = 3;
-
-const heroBaseDmg = (h, lv) => lv <= 0 ? 0 : h.baseDmg * lv * Math.pow(2, Math.floor(lv / 10));
-const heroDmg = h => heroBaseDmg(h, S.heroes[h.id]) * dmgMult();
-const heroDps = h => heroDmg(h) / h.interval * speedMult();
-const totalDps = () => HEROES.reduce((a, h) => a + heroDps(h), 0);
-const heroCost = (h, n) => geoCost(h.baseCost, HERO_R, S.heroes[h.id], n);
-
-const tapBase = lv => lv * Math.pow(2, Math.floor(lv / 10));
-const tapDmg = () => (tapBase(S.tapLv) + totalDps() * 0.05) * dmgMult();
-const tapCost = n => geoCost(8, 1.1, S.tapLv - 1, n);
-
-const jobIncomeOf = (j, lv) => j.base * lv * Math.pow(2, Math.floor(lv / 25));
-const jobIncome = () => JOBS.reduce((a, j, i) => a + jobIncomeOf(j, S.jobs[i]), 0) * pointMult();
-const jobCost = (i, n) => geoCost(JOBS[i].cost, JOB_R, S.jobs[i], n);
-
-const isBoss = st => st % 10 === 0;
-const areaIdxOf = st => Math.floor((st - 1) / 10) % AREAS.length;
-const loopOf = st => Math.floor((st - 1) / (10 * AREAS.length));
-const monsterHp = st => 10 * Math.pow(1.2, st - 1) * Math.pow(3, loopOf(st));
-const monsterReward = st => Math.ceil(monsterHp(st) * 0.18 / Math.pow(2.2, loopOf(st)));
-const foodCost = () => Math.max(40, monsterReward(S.stage) * 25);
-
-function examGain() {
-  if (S.maxStage < EXAM_MIN) return 0;
-  return Math.floor(Math.pow(S.maxStage - 30, 1.4) / 3);
-}
-function rankOf(p) {
-  let r = RANKS[0];
-  for (const x of RANKS) if (p >= x.p) r = x;
-  return r;
-}
-function areaLabel(st) {
-  const a = AREAS[areaIdxOf(st)], loop = loopOf(st);
-  return a.name + (loop ? ' ' + '★'.repeat(Math.min(loop, 3)) + (loop > 3 ? loop : '') : '');
-}
-
-/* ---------- DOM 준비 ---------- */
-const el = {
-  coins: $('#coins'), dps: $('#dps'), income: $('#income'), rank: $('#rank'),
-  field: $('#field'), deco: $('#deco'), stageName: $('#stage-name'), stageProg: $('#stage-progress'),
-  bossBar: $('#boss-bar'), bossFill: $('#boss-fill'), bossTime: $('#boss-time'),
-  advance: $('#advance-btn'), party: $('#party'), enemy: $('#enemy'), enemyName: $('#enemy-name'),
-  hpFill: $('#hp-fill'), hpText: $('#hp-text'), monster: $('#monster'), floats: $('#floats'),
-  skills: $('#skills'), buffs: $('#buff-icons'), toast: $('#toast'), tapHint: $('#tap-hint'),
-  panel: $('#panel'), modal: $('#modal'), modalBody: $('#modal-body'), modalBtns: $('#modal-btns'),
+const EN = {
+  kimera: { n: '작은 키메라', t: 'blob', c: '#c3b0ee', hp: 18, atk: 7, def: 2, spd: 5, exp: 6, coin: 5 },
+  grassblob: { n: '풀숲 덩어리', t: 'blob', c: '#94cc72', hp: 24, atk: 6, def: 4, spd: 3, exp: 7, coin: 6 },
+  spiky: { n: '뾰족 키메라', t: 'spiky', c: '#f2a7a7', hp: 16, atk: 9, def: 2, spd: 8, exp: 8, coin: 7 },
+  mush: { n: '버섯 요괴', t: 'mush', c: '#e86f6f', hp: 45, atk: 13, def: 6, spd: 6, exp: 16, coin: 12 },
+  forestk: { n: '숲 키메라', t: 'blob', c: '#78b585', hp: 55, atk: 15, def: 7, spd: 7, exp: 18, coin: 13 },
+  shadow: { n: '나무 그림자', t: 'eye', c: '#8c7a68', hp: 40, atk: 17, def: 5, spd: 10, exp: 20, coin: 15 },
+  bat: { n: '박쥐 키메라', t: 'bat', c: '#8a75a0', hp: 70, atk: 22, def: 8, spd: 14, exp: 30, coin: 22 },
+  rock: { n: '바위 덩어리', t: 'rock', c: '#a3a3b0', hp: 120, atk: 20, def: 16, spd: 4, exp: 34, coin: 25 },
+  cavek: { n: '동굴 키메라', t: 'spiky', c: '#7d9bb5', hp: 90, atk: 25, def: 10, spd: 9, exp: 36, coin: 28 },
+  boss1: { n: '숲의 주인', t: 'mush', c: '#c0392b', hp: 380, atk: 24, def: 9, spd: 7, exp: 150, coin: 200, boss: true, aoe: '포자 폭발' },
+  boss2: { n: '크고 강한 녀석', t: 'armor', c: '#8a5a2a', hp: 1100, atk: 34, def: 14, spd: 9, exp: 500, coin: 600, boss: true, aoe: '땅 울리기', twice: true },
 };
+loadImg('boss1', svgUrl(monsterSVG(EN.boss1, true)));
+loadImg('boss2', svgUrl(monsterSVG(EN.boss2, true)));
 
-function buildParty() {
-  const order = ['usagi', 'hachiware', 'chiikawa'];
-  el.party.innerHTML = order.map(id => `
-    <div class="hero" data-id="${id}" ${S.heroes[id] > 0 ? '' : 'hidden'}>
-      <div class="bubble"></div>
-      <div class="hero-body">${HERO_BY[id].svg()}</div>
-      <div class="hero-lv">Lv.${S.heroes[id]}</div>
-    </div>`).join('');
-  el.skills.innerHTML = HEROES.map(h => `
-    <button class="skill" data-skill="${h.id}" title="${h.skill.name}" hidden>
-      ${h.svg()}<span class="sk-cd"></span>
-    </button>`).join('');
+/* ---------- 맵 ---------- */
+const T = 40;
+const THEME = {
+  town: { grass: '#cdeeb0', dark: '#a9d68e', path: '#f2e4c0', crown: '#8fd07a', crown2: '#b9e6a6', bg: '#8fc27a', sky: ['#bfe6ff', '#eef9ff'], ground: '#a3d983' },
+  field: { grass: '#c2e8a2', dark: '#9fd283', path: '#f0dfb4', crown: '#7cc46c', crown2: '#a7dc96', bg: '#7fb86c', sky: ['#bfe6ff', '#eef9ff'], ground: '#a3d983' },
+  forest: { grass: '#a8d692', dark: '#86c070', path: '#e6d6a8', crown: '#5fae68', crown2: '#86c98a', bg: '#4f8a55', sky: ['#a9dcc2', '#e3f6ea'], ground: '#73ad63' },
+  cave: { floor: '#aaa2b9', dark: '#958da6', wall: '#5f5872', wallTop: '#7d7592', bg: '#3d3849', sky: ['#5c5672', '#8e87a6'], ground: '#6e667b' },
+};
+const SOLID = new Set(['T', '~', '#', 'r']);
+
+const grid = (w, h, ch) => Array.from({ length: h }, () => Array(w).fill(ch));
+function rect(g, x, y, w, h, ch) { for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (g[j] && g[j][i] !== undefined) g[j][i] = ch; }
+function border(g, ch) { const h = g.length, w = g[0].length; for (let i = 0; i < w; i++) { g[0][i] = ch; g[h - 1][i] = ch; } for (let j = 0; j < h; j++) { g[j][0] = ch; g[j][w - 1] = ch; } }
+function hl(g, x1, x2, y, ch) { for (let i = Math.min(x1, x2); i <= Math.max(x1, x2); i++) g[y][i] = ch; }
+function vl(g, x, y1, y2, ch) { for (let j = Math.min(y1, y2); j <= Math.max(y1, y2); j++) g[j][x] = ch; }
+function nearPath(g, x, y) {
+  for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (g[y + j] && g[y + j][x + i] === '=') return true;
+  return false;
 }
-const heroEl = id => el.party.querySelector(`.hero[data-id="${id}"]`);
-
-function refreshParty() {
-  for (const h of HEROES) {
-    const e = heroEl(h.id), lv = S.heroes[h.id];
-    e.hidden = lv <= 0;
-    e.querySelector('.hero-lv').textContent = 'Lv.' + lv;
-  }
-}
-
-function setArea(force) {
-  const idx = areaIdxOf(S.stage);
-  if (idx === rt.areaIdx && !force) return;
-  rt.areaIdx = idx;
-  const a = AREAS[idx];
-  el.field.style.background = `linear-gradient(${a.sky[0]}, ${a.sky[1]} 62%, ${a.ground} 62%, ${a.ground})`;
-  let html = '';
-  for (let i = 0; i < 9; i++) {
-    const ground = i < 6;
-    const x = rand(2, 94), y = ground ? rand(64, 92) : rand(14, 48);
-    const size = ground ? rand(16, 26) : rand(12, 20);
-    html += `<span style="left:${x}%;top:${y}%;font-size:${size}px">${ground ? pick(a.deco) : (a.sky[0] < '#6' ? pick(['✨', '⭐', '·']) : pick(['☁️', '·', '☁️']))}</span>`;
-  }
-  el.deco.innerHTML = html;
-}
-
-/* ---------- 몬스터 ---------- */
-function spawnMonster() {
-  const st = S.stage, boss = isBoss(st), area = AREAS[areaIdxOf(st)];
-  const def = boss ? area.boss : pick(area.mons);
-  const hp = monsterHp(st) * (boss ? BOSS_HP : 1);
-  rt.monster = { def, boss, hp, maxHp: hp, reward: monsterReward(st) * (boss ? BOSS_REWARD : 1) };
-  if (boss) {
-    rt.bossTime = BOSS_TIME;
-    toast(`⚠️ 보스 출현! <b>${def.n}</b>`);
-    say('chiikawa', '으…!', true);
-  }
-  el.enemy.classList.toggle('boss', boss);
-  el.enemyName.textContent = def.n;
-  el.monster.innerHTML = monsterSVG(def, boss);
-  el.monster.className = '';
-  void el.monster.offsetWidth;
-  el.monster.className = 'spawn';
-  setArea();
-  updateStageUI();
-  updateHp();
-}
-
-function updateHp() {
-  const m = rt.monster;
-  if (!m) { el.hpFill.style.width = '0%'; el.hpText.textContent = ''; return; }
-  el.hpFill.style.width = Math.max(0, m.hp / m.maxHp * 100) + '%';
-  el.hpText.textContent = fmt(Math.max(0, m.hp)) + ' / ' + fmt(m.maxHp);
-}
-
-function updateStageUI() {
-  const st = S.stage, inArea = (st - 1) % 10 + 1, areaNo = Math.floor((st - 1) / 10) + 1;
-  el.stageName.textContent = `${areaLabel(st)} ${areaNo}-${inArea}`;
-  if (isBoss(st)) {
-    el.stageProg.innerHTML = '<span class="boss-label">👑 보스전</span>';
-  } else {
-    let d = '';
-    for (let i = 0; i < KILLS_PER_STAGE; i++) d += `<i class="${i < S.kills ? 'on' : ''}"></i>`;
-    el.stageProg.innerHTML = d;
-  }
-  el.bossBar.hidden = !(rt.monster && rt.monster.boss);
-  el.advance.hidden = S.autoAdvance;
-}
-
-function enemyCenter() {
-  const f = el.field.getBoundingClientRect(), m = el.monster.getBoundingClientRect();
-  return { x: m.left - f.left + m.width / 2, y: m.top - f.top + m.height * .4 };
-}
-
-function floatText(text, cls, x, y) {
-  if (rt.floatCount > 28 && cls !== 'crit' && cls !== 'coin' && cls !== 'skill') return;
-  if (x === undefined) { const c = enemyCenter(); x = c.x + rand(-30, 30); y = c.y + rand(-20, 15); }
-  const d = document.createElement('div');
-  d.className = 'float ' + cls;
-  d.style.left = x + 'px';
-  d.style.top = y + 'px';
-  d.textContent = text;
-  rt.floatCount++;
-  d.addEventListener('animationend', () => { d.remove(); rt.floatCount--; });
-  el.floats.appendChild(d);
-}
-
-function hit(dmg, kind) {
-  const m = rt.monster;
-  if (!m) return;
-  let crit = false;
-  if (kind !== 'skill' && Math.random() < critChance()) { dmg *= CRIT_MULT; crit = true; }
-  m.hp -= dmg;
-  floatText(fmt(dmg) + (crit ? '!' : ''), kind === 'skill' ? 'skill' : crit ? 'crit' : kind === 'tap' ? 'tap' : 'dmg');
-  const now = performance.now();
-  if (now - rt.lastHitFx > 90) {
-    rt.lastHitFx = now;
-    el.monster.classList.remove('hit', 'spawn');
-    void el.monster.offsetWidth;
-    el.monster.classList.add('hit');
-  }
-  if (m.hp <= 0) killMonster();
-  else updateHp();
-}
-
-function killMonster() {
-  const m = rt.monster;
-  const reward = m.reward * coinMult();
-  addCoins(reward);
-  floatText('+' + fmt(reward) + ' 💰', 'coin');
-  S.stats.kills++;
-  if (m.boss) {
-    S.stats.bossKills++;
-    S.stage++;
-    S.kills = 0;
-    toast(`🎉 <b>${m.def.n}</b> 토벌 성공!`);
-    cheerAll();
-  } else {
-    S.kills++;
-    if (S.kills >= KILLS_PER_STAGE) {
-      if (S.autoAdvance) { S.stage++; S.kills = 0; } else S.kills = KILLS_PER_STAGE;
+function blobs(g, r, ch, n, rad, on) {
+  const h = g.length, w = g[0].length;
+  for (let k = 0; k < n; k++) {
+    const cx = 2 + r() * (w - 4), cy = 2 + r() * (h - 4), rr = rad * (0.7 + r() * 0.6);
+    for (let j = 1; j < h - 1; j++) for (let i = 1; i < w - 1; i++) {
+      if (g[j][i] === on && ((i - cx) ** 2 + ((j - cy) * 1.3) ** 2) < rr * rr) g[j][i] = ch;
     }
   }
-  if (S.stage > S.maxStage) S.maxStage = S.stage;
-  if (S.maxStage > S.stats.bestStage) S.stats.bestStage = S.maxStage;
-  rt.monster = null;
-  rt.respawn = m.boss ? 0.9 : 0.42;
-  el.monster.className = 'die';
-  updateHp();
-  updateStageUI();
+}
+function scatter(g, r, ch, prob, cond) {
+  for (let j = 1; j < g.length - 1; j++) for (let i = 1; i < g[0].length - 1; i++) if (cond(i, j) && r() < prob) g[j][i] = ch;
 }
 
-function bossFail() {
-  S.stage = Math.max(1, S.stage - 1);
-  S.kills = KILLS_PER_STAGE;
-  S.autoAdvance = false;
-  rt.monster = null;
-  toast('보스를 놓쳤다…<br><small>더 강해져서 다시 도전하자!</small>');
-  say('chiikawa', '으… 흑…', true);
-  setTimeout(() => say('hachiware', '괜찮아, 다음엔 이길 거야!', true), 900);
-  spawnMonster();
-}
-
-function addCoins(n) {
-  S.coins += n;
-  S.stats.totalCoins += n;
-}
-
-/* ---------- 연출 ---------- */
-let toastTimer = 0;
-function toast(html) {
-  el.toast.innerHTML = html;
-  el.toast.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.toast.classList.remove('show'), 1800);
-}
-
-const bubbleTimers = {};
-function say(id, text, big) {
-  if (S.heroes[id] <= 0) return;
-  const b = heroEl(id).querySelector('.bubble');
-  b.textContent = text;
-  b.classList.toggle('big', !!big);
-  b.classList.add('show');
-  clearTimeout(bubbleTimers[id]);
-  bubbleTimers[id] = setTimeout(() => b.classList.remove('show'), 2200);
-}
-
-function heroAttackFx(id) {
-  const now = performance.now();
-  if (now - (rt.lastAtkFx[id] || 0) < 200) return;
-  rt.lastAtkFx[id] = now;
-  const b = heroEl(id).querySelector('.hero-body');
-  b.classList.remove('atk', 'cheer');
-  void b.offsetWidth;
-  b.classList.add('atk');
-}
-
-function cheerAll() {
-  for (const h of HEROES) {
-    if (S.heroes[h.id] <= 0) continue;
-    const b = heroEl(h.id).querySelector('.hero-body');
-    b.classList.remove('atk', 'cheer');
-    void b.offsetWidth;
-    b.classList.add('cheer');
+function buildMaps() {
+  const M = {};
+  { // 마을
+    const w = 24, h = 17, g = grid(w, h, '.'), r = mulberry(11);
+    border(g, 'T');
+    hl(g, 1, 23, 9, '=');
+    vl(g, 4, 5, 8, '='); vl(g, 8, 5, 8, '='); vl(g, 13, 5, 8, '='); vl(g, 19, 5, 8, '=');
+    rect(g, 4, 12, 5, 3, '~');
+    [[11, 12], [12, 14], [20, 14], [21, 11], [2, 14], [14, 15], [1, 11], [22, 15]].forEach(([x, y]) => g[y][x] = 'T');
+    scatter(g, r, 'f', .07, (x, y) => g[y][x] === '.' && !nearPath(g, x, y) && y > 4);
+    M.town = {
+      id: 'town', name: '마을', theme: 'town', w, h, g,
+      buildings: [
+        { x: 2, y: 2, w: 4, h: 3, kind: 'home', label: '치이카와네 집', roof: '#f4a6b8' },
+        { x: 7, y: 3, w: 3, h: 2, kind: 'board', label: '노동 게시판' },
+        { x: 11, y: 2, w: 5, h: 3, kind: 'shop', label: '도구점', roof: '#8fc1e3' },
+        { x: 17, y: 2, w: 5, h: 3, kind: 'ramen', label: '라멘', roof: '#f2b45a' },
+      ],
+      npcs: [
+        { id: 'armor', x: 10, y: 5, img: 'armor' },
+        { id: 'kuri', x: 21, y: 6, img: 'kuri' },
+        { id: 'rakko', x: 16, y: 12, img: 'rakko' },
+      ],
+      exits: [{ x: 23, y: 9, to: 'field', tx: 1, ty: 10, label: '풀숲 ▶' }],
+    };
   }
-  say('chiikawa', '해냈다…!', true);
-  setTimeout(() => say('usagi', '야하ー!!', true), 300);
-  setTimeout(() => say('hachiware', '와~ 대단해!', true), 600);
+  { // 풀숲
+    const w = 32, h = 20, g = grid(w, h, '.'), r = mulberry(22);
+    border(g, 'T');
+    hl(g, 0, 12, 10, '='); vl(g, 12, 6, 10, '='); hl(g, 12, 22, 6, '='); vl(g, 22, 6, 12, '='); hl(g, 22, 31, 12, '=');
+    rect(g, 3, 3, 5, 3, '~');
+    blobs(g, r, ',', 16, 2.6, '.');
+    scatter(g, r, 'T', .07, (x, y) => (g[y][x] === '.' || g[y][x] === ',') && !nearPath(g, x, y));
+    scatter(g, r, 'f', .05, (x, y) => g[y][x] === '.');
+    g[4][17] = '.'; g[5][17] = '.';
+    const cand = [];
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      if ((g[y][x] === '.' || g[y][x] === ',' || g[y][x] === 'f') && !(x === 17 && y < 6) &&
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => g[y + b][x + a] === '=')) cand.push([x, y]);
+    }
+    const weeds = [];
+    while (weeds.length < 10 && cand.length) {
+      const [x, y] = cand.splice(Math.floor(r() * cand.length), 1)[0];
+      if (x < 3) continue;
+      g[y][x] = '.';
+      weeds.push({ x, y });
+    }
+    M.field = {
+      id: 'field', name: '풀숲', theme: 'field', w, h, g, weeds,
+      enc: { rate: .1, on: ',', list: ['kimera', 'grassblob', 'spiky'], max: 2 },
+      npcs: [{ id: 'usagi', x: 17, y: 4, img: 'usagi' }],
+      exits: [
+        { x: 0, y: 10, to: 'town', tx: 22, ty: 9, label: '◀ 마을' },
+        { x: 31, y: 12, to: 'forest', tx: 1, ty: 12, label: '숲 ▶', need: 3, gate: '숲은 위험하대… 노동 게시판에서 토벌 의뢰를 받고 나서 가자!' },
+      ],
+    };
+  }
+  { // 깊은 숲
+    const w = 32, h = 24, g = grid(w, h, '.'), r = mulberry(33);
+    border(g, 'T');
+    hl(g, 0, 8, 12, '='); vl(g, 8, 4, 19, '='); hl(g, 8, 26, 4, '='); hl(g, 8, 31, 19, '=');
+    blobs(g, r, ',', 22, 2.8, '.');
+    scatter(g, r, 'T', .2, (x, y) => (g[y][x] === '.' || g[y][x] === ',') && !nearPath(g, x, y));
+    rect(g, 25, 2, 5, 5, '.');
+    scatter(g, r, 'f', .04, (x, y) => g[y][x] === '.');
+    M.forest = {
+      id: 'forest', name: '깊은 숲', theme: 'forest', w, h, g,
+      enc: { rate: .12, on: ',', list: ['mush', 'forestk', 'shadow'], max: 3 },
+      npcs: [],
+      boss: { id: 'boss1', x: 27, y: 4, flag: 'boss1', need: 3, img: 'boss1' },
+      exits: [
+        { x: 0, y: 12, to: 'field', tx: 30, ty: 12, label: '◀ 풀숲' },
+        { x: 31, y: 19, to: 'cave', tx: 1, ty: 17, label: '동굴 ▶', need: 4, gate: '동굴은 토벌 자격 시험 때 가는 곳이래. 지금은 돌아가자.' },
+      ],
+    };
+  }
+  { // 동굴
+    const w = 28, h = 22, g = grid(w, h, '#');
+    rect(g, 0, 17, 11, 2, '_'); rect(g, 9, 9, 2, 10, '_'); rect(g, 9, 9, 12, 2, '_');
+    rect(g, 19, 3, 2, 8, '_'); rect(g, 12, 1, 9, 4, '_');
+    rect(g, 3, 3, 5, 5, '_'); rect(g, 5, 8, 2, 9, '_');
+    rect(g, 14, 13, 8, 5, '_'); rect(g, 11, 15, 3, 2, '_');
+    rect(g, 22, 6, 4, 8, '_'); rect(g, 21, 7, 1, 2, '_');
+    [[4, 4], [7, 6], [15, 14], [20, 16], [24, 7], [23, 12], [13, 1]].forEach(([x, y]) => g[y][x] = 'r');
+    M.cave = {
+      id: 'cave', name: '어두운 동굴', theme: 'cave', w, h, g,
+      enc: { rate: .085, on: '_', list: ['bat', 'rock', 'cavek'], max: 3 },
+      npcs: [],
+      boss: { id: 'boss2', x: 16, y: 2, flag: 'boss2', need: 4, img: 'boss2' },
+      exits: [
+        { x: 0, y: 17, to: 'forest', tx: 30, ty: 19, label: '◀ 숲' },
+        { x: 0, y: 18, to: 'forest', tx: 30, ty: 19 },
+      ],
+    };
+  }
+  return M;
+}
+const MAPS = buildMaps();
+
+/* ---------- 상태 ---------- */
+const SAVE_KEY = 'chiikawa-rpg-save-v1';
+function freshState() {
+  return {
+    map: 'town', x: 4, y: 5, dir: 'down',
+    coins: 30,
+    party: [newMember('chiikawa'), newMember('hachiware')],
+    items: { herb: 3, bigherb: 0, tea: 1, onigiri: 0 },
+    quest: 0, weeds: 0, kills: 0, repeat: false,
+    flags: { usagi: false, boss1: false, boss2: false },
+    steps: 0, playTime: 0,
+  };
+}
+let S = null;
+function hasSave() { try { return !!localStorage.getItem(SAVE_KEY); } catch (e) { return false; } }
+function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) { } }
+function load() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw), f = freshState();
+    return Object.assign(f, d, { flags: Object.assign(f.flags, d.flags), items: Object.assign(f.items, d.items) });
+  } catch (e) { return null; }
 }
 
-/* ---------- 행동 ---------- */
-function tapAttack(e) {
-  if (!rt.monster) return;
-  S.stats.taps++;
-  const f = el.field.getBoundingClientRect();
-  const x = e.clientX - f.left, y = e.clientY - f.top;
-  const p = document.createElement('div');
-  p.className = 'poof';
-  p.style.left = x + 'px';
-  p.style.top = y + 'px';
-  p.addEventListener('animationend', () => p.remove());
-  el.floats.appendChild(p);
-  hit(tapDmg(), 'tap');
-  if (!el.tapHint.hidden && S.stats.taps >= 15) el.tapHint.hidden = true;
+/* ---------- 런타임 ---------- */
+const cv = $('#map'), ctx = cv.getContext('2d');
+const appEl = $('#app');
+let VW = 0, VH = 0, DPR = 1;
+let mode = 'title';
+const held = [];
+const rt = { moving: false, t: 0, chain: [], prev: [], pulled: new Set(), encSafe: 4, time: 0 };
+const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+const MOVE_TIME = 0.16;
+let map = null;
+
+function resize() {
+  const r = appEl.getBoundingClientRect();
+  DPR = window.devicePixelRatio || 1;
+  VW = r.width; VH = r.height;
+  cv.width = Math.round(VW * DPR); cv.height = Math.round(VH * DPR);
+  cv.style.width = VW + 'px'; cv.style.height = VH + 'px';
+}
+window.addEventListener('resize', resize);
+
+/* ---------- 맵 그리기 ---------- */
+function drawTile(g, ch, x, y, th, r) {
+  const X = x * T, Y = y * T;
+  if (ch === '#') {
+    g.fillStyle = th.wall; g.fillRect(X, Y, T, T);
+    g.fillStyle = th.wallTop; g.fillRect(X, Y, T, T * .72);
+    g.fillStyle = 'rgba(255,255,255,.08)';
+    g.beginPath(); g.arc(X + T * r(), Y + T * .35 * r() + 4, 4 + r() * 4, 0, 7); g.fill();
+    return;
+  }
+  g.fillStyle = th.floor || th.grass; g.fillRect(X, Y, T, T);
+  if (r() < .35) {
+    g.strokeStyle = th.dark; g.lineWidth = 2; g.lineCap = 'round';
+    const tx = X + 6 + r() * (T - 12), ty = Y + 8 + r() * (T - 14);
+    g.beginPath(); g.moveTo(tx - 3, ty - 4); g.lineTo(tx, ty); g.lineTo(tx + 3, ty - 4); g.stroke();
+  }
+  g.lineWidth = 2.5; g.strokeStyle = INK; g.lineJoin = 'round'; g.lineCap = 'round';
+  switch (ch) {
+    case '=':
+      g.fillStyle = th.path; g.beginPath(); g.roundRect(X - 1, Y - 1, T + 2, T + 2, 6); g.fill();
+      g.fillStyle = 'rgba(160,130,90,.25)';
+      for (let k = 0; k < 2; k++) { g.beginPath(); g.arc(X + r() * T, Y + r() * T, 1.6, 0, 7); g.fill(); }
+      break;
+    case ',':
+      for (let k = 0; k < 3; k++) {
+        const bx = X + 8 + k * 11 + r() * 3, by = Y + T - 6 - (k % 2) * 12;
+        g.fillStyle = th.dark;
+        g.beginPath(); g.moveTo(bx - 7, by); g.lineTo(bx - 4, by - 14); g.lineTo(bx - 1, by - 5); g.lineTo(bx + 2, by - 16); g.lineTo(bx + 4, by - 5); g.lineTo(bx + 7, by - 12); g.lineTo(bx + 8, by); g.closePath();
+        g.fill(); g.lineWidth = 1.6; g.stroke();
+      }
+      break;
+    case '~':
+      g.fillStyle = '#9fd6f4'; g.fillRect(X, Y, T, T);
+      g.strokeStyle = '#fff'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(X + 6, Y + 14); g.quadraticCurveTo(X + 12, Y + 10, X + 18, Y + 14); g.stroke();
+      g.beginPath(); g.moveTo(X + 20, Y + 28); g.quadraticCurveTo(X + 26, Y + 24, X + 32, Y + 28); g.stroke();
+      break;
+    case 'f':
+      for (let k = 0; k < 2; k++) {
+        const fx = X + 8 + r() * (T - 16), fy = Y + 8 + r() * (T - 16);
+        g.fillStyle = pick(['#ffb3c6', '#fff3a0', '#ffffff', '#c9b6ff']);
+        for (let p = 0; p < 5; p++) { g.beginPath(); g.arc(fx + Math.cos(p * 1.256) * 3.5, fy + Math.sin(p * 1.256) * 3.5, 2.8, 0, 7); g.fill(); }
+        g.fillStyle = '#f2b33d'; g.beginPath(); g.arc(fx, fy, 2, 0, 7); g.fill();
+      }
+      break;
+    case 'r':
+      g.fillStyle = '#b9b3c4'; g.beginPath(); g.ellipse(X + T / 2, Y + T * .6, T * .4, T * .32, 0, 0, 7); g.fill(); g.stroke();
+      g.fillStyle = 'rgba(255,255,255,.4)'; g.beginPath(); g.ellipse(X + T * .4, Y + T * .48, 5, 3, -.4, 0, 7); g.fill();
+      break;
+    case 'T':
+      g.fillStyle = '#a8794f'; g.beginPath(); g.roundRect(X + T * .42, Y + T * .5, T * .16, T * .42, 3); g.fill(); g.lineWidth = 2; g.stroke();
+      g.fillStyle = th.crown; g.beginPath(); g.arc(X + T / 2, Y + T * .38, T * .4, 0, 7); g.fill(); g.lineWidth = 2.5; g.stroke();
+      g.fillStyle = th.crown2; g.beginPath(); g.arc(X + T * .38, Y + T * .27, T * .12, 0, 7); g.fill();
+      break;
+  }
+}
+function drawBuilding(g, b) {
+  const X = b.x * T, Y = b.y * T, W = b.w * T, H = b.h * T;
+  g.lineWidth = 3; g.strokeStyle = INK; g.lineJoin = 'round';
+  if (b.kind === 'board') {
+    g.fillStyle = '#a8794f';
+    g.fillRect(X + 12, Y + H * .45, 7, H * .55); g.strokeRect(X + 12, Y + H * .45, 7, H * .55);
+    g.fillRect(X + W - 19, Y + H * .45, 7, H * .55); g.strokeRect(X + W - 19, Y + H * .45, 7, H * .55);
+    g.fillStyle = '#d9a86c'; g.beginPath(); g.roundRect(X + 4, Y + 4, W - 8, H * .62, 6); g.fill(); g.stroke();
+    const papers = ['#fff', '#fff6c8', '#ffe1e8', '#e2f1ff'];
+    for (let i = 0; i < 4; i++) {
+      g.fillStyle = papers[i];
+      g.save(); g.translate(X + 18 + i * 22, Y + 24); g.rotate((i % 2 ? 1 : -1) * .08);
+      g.fillRect(-8, -9, 16, 20); g.lineWidth = 1.5; g.strokeRect(-8, -9, 16, 20); g.restore();
+    }
+    label(g, b.label, X + W / 2, Y - 2);
+    return;
+  }
+  const roofH = H * .45;
+  g.fillStyle = '#fff8ec';
+  g.beginPath(); g.roundRect(X + 6, Y + roofH - 6, W - 12, H - roofH + 2, 6); g.fill(); g.stroke();
+  g.fillStyle = b.roof;
+  g.beginPath(); g.moveTo(X, Y + roofH); g.lineTo(X + 14, Y + 6); g.lineTo(X + W - 14, Y + 6); g.lineTo(X + W, Y + roofH); g.closePath(); g.fill(); g.stroke();
+  const dw = T * .7, dx = X + Math.floor(b.w / 2) * T + (T - dw) / 2;
+  g.fillStyle = '#b5845a'; g.beginPath(); g.roundRect(dx, Y + H - T * .85, dw, T * .85, [10, 10, 0, 0]); g.fill(); g.stroke();
+  g.fillStyle = INK; g.beginPath(); g.arc(dx + dw - 7, Y + H - T * .42, 2, 0, 7); g.fill();
+  g.fillStyle = '#bfe3ff';
+  const wy = Y + roofH + 8;
+  [X + 16, X + W - 40].forEach(wx => { if (Math.abs(wx + 12 - (dx + dw / 2)) > 30) { g.beginPath(); g.roundRect(wx, wy, 24, 20, 5); g.fill(); g.lineWidth = 2.5; g.stroke(); } });
+  if (b.kind === 'ramen') {
+    g.fillStyle = '#e8495f';
+    g.beginPath(); g.roundRect(X + 10, Y + roofH - 4, W - 20, 12, 4); g.fill(); g.lineWidth = 2; g.stroke();
+  }
+  label(g, b.label, X + W / 2, Y + roofH * .62);
+}
+function label(g, text, x, y) {
+  g.font = '15px Jua, sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  const w = g.measureText(text).width + 14;
+  g.fillStyle = '#fff'; g.lineWidth = 2; g.strokeStyle = INK;
+  g.beginPath(); g.roundRect(x - w / 2, y - 11, w, 22, 11); g.fill(); g.stroke();
+  g.fillStyle = INK; g.fillText(text, x, y + 1);
 }
 
-function useSkill(id) {
-  const h = HERO_BY[id];
-  if (S.heroes[id] < SKILL_LV || S.skillCd[id] > 0) return false;
-  if (id === 'usagi' && !rt.monster) return false;
-  S.skillCd[id] = h.skill.cd;
-  if (h.skill.dur) S.skillOn[id] = h.skill.dur;
-  say(id, h.skill.line, true);
-  heroAttackFx(id);
-  if (id === 'usagi') hit(totalDps() * 30, 'skill');
-  else toast(`✨ ${h.name}: <b>${h.skill.name}</b>`);
+function prerender(m) {
+  const SC = 2, c = document.createElement('canvas');
+  c.width = m.w * T * SC; c.height = m.h * T * SC;
+  const g = c.getContext('2d'); g.scale(SC, SC);
+  const th = THEME[m.theme], r = mulberry(m.w * 131 + m.h);
+  for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) drawTile(g, m.g[y][x], x, y, th, r);
+  (m.buildings || []).forEach(b => drawBuilding(g, b));
+  m.exits.forEach(e => { if (e.label) label(g, e.label, e.x * T + T / 2 + (e.x === 0 ? 26 : -26), e.y * T - 6); });
+  m.canvas = c;
+}
+
+/* ---------- 맵 로직 ---------- */
+function npcVisible(n) { return !(n.id === 'usagi' && S.flags.usagi); }
+function bossAlive(m) { return m.boss && !S.flags[m.boss.flag]; }
+function buildingAt(x, y) { return (map.buildings || []).find(b => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h); }
+function npcAt(x, y) { return map.npcs.find(n => n.x === x && n.y === y && npcVisible(n)); }
+function weedAt(x, y) { return (map.weeds || []).find(w => w.x === x && w.y === y && !rt.pulled.has(x + ',' + y)); }
+function exitAt(x, y) { return map.exits.find(e => e.x === x && e.y === y); }
+function walkable(x, y) {
+  if (x < 0 || y < 0 || x >= map.w || y >= map.h) return false;
+  if (SOLID.has(map.g[y][x])) return false;
+  if (buildingAt(x, y) || npcAt(x, y) || weedAt(x, y)) return false;
+  if (bossAlive(map) && map.boss.x === x && map.boss.y === y) return false;
   return true;
 }
 
-function buyHero(id) {
-  const h = HERO_BY[id], n = buyN(h.baseCost, HERO_R, S.heroes[id]), c = heroCost(h, n);
-  if (S.coins < c) return;
-  const was = S.heroes[id];
-  S.coins -= c;
-  S.heroes[id] += n;
-  refreshParty();
-  if (was === 0) {
-    toast(`${h.name}(이)가 동료가 되었다!`);
-    setTimeout(() => say(id, pick(h.lines), true), 200);
-  } else if (Math.floor(was / 10) !== Math.floor(S.heroes[id] / 10)) {
-    say(id, S.heroes[id] >= SKILL_LV && was < SKILL_LV ? '스킬을 배웠다!' : '강해졌다!', true);
-  }
-}
-function buyTap() {
-  const n = buyN(8, 1.1, S.tapLv - 1), c = tapCost(n);
-  if (S.coins < c) return;
-  S.coins -= c;
-  S.tapLv += n;
-}
-function buyJob(i) {
-  const n = buyN(JOBS[i].cost, JOB_R, S.jobs[i]), c = jobCost(i, n);
-  if (S.coins < c) return;
-  S.coins -= c;
-  S.jobs[i] += n;
-}
-function buyFood(id) {
-  const c = foodCost();
-  if (S.coins < c || S.buffs[id] >= FOOD_CAP - 1) return;
-  S.coins -= c;
-  S.buffs[id] = Math.min(FOOD_CAP, S.buffs[id] + FOOD_DUR);
-  const f = FOODS.find(x => x.id === id);
-  toast(`${f.icon} 냠냠! ${f.short}`);
-  say(pick(HEROES.filter(h => S.heroes[h.id] > 0)).id, '맛있다~!', true);
+function enterMap(id, x, y, dir) {
+  map = MAPS[id];
+  if (!map.canvas) prerender(map);
+  S.map = id; S.x = x; S.y = y; if (dir) S.dir = dir;
+  rt.pulled = new Set();
+  rt.moving = false;
+  rt.chain = S.party.map(() => ({ x, y }));
+  rt.prev = rt.chain.map(p => ({ ...p }));
+  rt.encSafe = 5;
+  $('#hud-area').textContent = map.name;
+  updateHud();
 }
 
-function doExam() {
-  const gain = examGain();
-  if (gain <= 0) return;
-  showModal(`<h2>📜 토벌 자격 시험</h2>
-    <p>지금까지의 경험으로 시험을 보면<br><span class="big-num">+${gain}</span> 자격 포인트를 얻어요.</p>
-    <p class="muted">보수 · 동료 레벨 · 노동 · 스테이지는 처음부터 다시 시작해요.<br>자격 포인트 1개당 공격력과 보수가 영구히 +10%!</p>`,
-  [{ label: '그만두기', cls: 'pink' }, {
-    label: '시험 보기!', cls: 'yellow', fn: () => {
-      const keep = { points: S.points + gain, prestiges: S.prestiges + 1, stats: S.stats, autoSkill: S.autoSkill, buyMode: S.buyMode, seenIntro: true };
-      S = Object.assign(freshState(), keep);
-      S.coins = S.points * 5;
-      rt.monster = null;
-      rt.heroTimer = {};
-      buildParty();
-      setArea(true);
-      spawnMonster();
-      renderPanel();
-      save();
-      const r = rankOf(S.points);
-      setTimeout(() => showModal(`<div class="faces">${chiikawaSVG()}${hachiwareSVG()}${usagiSVG()}</div>
-        <h2>합격!</h2><p>자격 포인트 <b>${S.points}</b> · 등급 <b>${r.n}</b><br>모두 다시 처음부터 힘내자!</p>`), 100);
-    },
-  }]);
+async function changeMap(e) {
+  mode = 'trans';
+  $('#fade').classList.add('on');
+  await sleep(260);
+  enterMap(e.to, e.tx, e.ty);
+  save();
+  $('#fade').classList.remove('on');
+  await sleep(150);
+  mode = 'map';
 }
 
-/* ---------- 모달 ---------- */
-function showModal(html, buttons) {
-  buttons = buttons || [{ label: '좋아!', cls: '' }];
-  el.modalBody.innerHTML = html;
-  el.modalBtns.innerHTML = '';
-  for (const b of buttons) {
-    const btn = document.createElement('button');
-    btn.className = 'buy ' + (b.cls || '');
-    btn.textContent = b.label;
-    btn.onclick = () => { el.modal.hidden = true; b.fn && b.fn(); };
-    el.modalBtns.appendChild(btn);
-  }
-  el.modal.hidden = false;
-}
-
-/* ---------- 패널 ---------- */
-function buyLabel(n, cost, verb) {
-  return `${verb}${n > 1 ? ' ×' + n : ''}<small>💰 ${fmt(cost)}</small>`;
-}
-function segHtml() {
-  return `<div class="seg">${[1, 10, 'max'].map(m =>
-    `<button data-act="mode" data-v="${m}" class="${S.buyMode === m ? 'on' : ''}">${m === 'max' ? 'MAX' : '×' + m}</button>`).join('')}</div>`;
-}
-
-function renderPanel() {
-  const t = rt.tab;
-  let h = '';
-  if (t === 'heroes') {
-    h += `<div class="panel-head"><span>토벌대 동료</span>${segHtml()}</div>`;
-    for (const x of HEROES) {
-      h += `<div class="card" data-hero="${x.id}">
-        <div class="card-ico">${x.svg()}</div>
-        <div class="card-main">
-          <div class="card-title">${x.name} <span class="lv"></span></div>
-          <div class="card-desc">${x.desc}</div>
-          <div class="card-stat"></div>
-          <div class="card-desc sk"></div>
-        </div>
-        <button class="buy" data-act="hero" data-id="${x.id}"></button>
-      </div>`;
-    }
-    h += `<div class="card" data-tap>
-      <div class="card-ico">👆</div>
-      <div class="card-main">
-        <div class="card-title">같이 싸우기 연습 <span class="lv"></span></div>
-        <div class="card-desc">화면을 누르면 함께 공격! 동료 DPS의 5%가 더해진다.</div>
-        <div class="card-stat"></div>
-      </div>
-      <button class="buy blue" data-act="tap"></button>
-    </div>`;
-  } else if (t === 'jobs') {
-    h += `<div class="panel-head"><span>노동 게시판 <small id="job-total"></small></span>${segHtml()}</div>`;
-    JOBS.forEach((j, i) => {
-      h += `<div class="card" data-job="${i}">
-        <div class="card-ico">${j.icon}</div>
-        <div class="card-main">
-          <div class="card-title">${j.name} <span class="lv"></span></div>
-          <div class="card-desc">${j.desc}</div>
-          <div class="card-stat"></div>
-        </div>
-        <button class="buy pink" data-act="job" data-i="${i}"></button>
-      </div>`;
-    });
-    h += `<p class="card-desc" style="text-align:center">노동 보수는 게임을 꺼둔 동안에도 쌓여요 (최대 12시간)</p>`;
-  } else if (t === 'food') {
-    h += `<div class="panel-head"><span>맛있는 것 먹고 힘내기</span><small>한 번에 +${FOOD_DUR / 60}분 (최대 ${FOOD_CAP / 60}분)</small></div>`;
-    for (const f of FOODS) {
-      h += `<div class="card" data-food="${f.id}">
-        <div class="card-ico">${f.icon}</div>
-        <div class="card-main">
-          <div class="card-title">${f.name}</div>
-          <div class="card-desc">${f.desc}</div>
-          <div class="card-stat"></div>
-        </div>
-        <button class="buy yellow" data-act="food" data-id="${f.id}"></button>
-      </div>`;
-    }
-    h += `<p class="card-desc" style="text-align:center">가격은 현재 스테이지에 따라 올라가요</p>`;
-  } else if (t === 'exam') {
-    const r = rankOf(S.points);
-    h += `<div class="box">
-      <h3>📜 토벌 자격 시험</h3>
-      <p>현재 등급: <b>${r.n}</b> · 자격 포인트 <b id="ex-points">${S.points}</b></p>
-      <p>영구 보너스: 공격력 · 보수 <b>×${pointMult().toFixed(1)}</b></p>
-      <p class="muted">스테이지 ${EXAM_MIN} 이상 도달하면 시험을 볼 수 있어요. 더 멀리 갈수록 포인트가 많아져요.</p>
-      <p>이번 도전 최고 스테이지: <b id="ex-max"></b></p>
-      <p>얻을 수 있는 포인트: <span class="big-num" id="ex-gain"></span></p>
-      <div class="row"><button class="buy yellow" data-act="exam" id="ex-btn">시험 보러 가기!</button></div>
-      <label class="toggle" id="auto-wrap"><input type="checkbox" data-act="auto" ${S.autoSkill ? 'checked' : ''}> 스킬 자동 사용 <small class="muted" id="auto-note"></small></label>
-    </div>
-    <div class="box"><h3>등급표</h3><ul class="rank-list">
-      ${RANKS.map(x => `<li class="${x === r ? 'on' : ''}"><span>${x.n}</span><span>${x.p} pt</span></li>`).join('')}
-    </ul><p class="muted">토벌 3급부터 스킬 자동 사용이 해금돼요.</p></div>`;
-  } else if (t === 'info') {
-    h += `<div class="box">
-      <h3>🌏 이 세계에 대해</h3>
-      <p>작고 귀여운 녀석들이 사는 세계. 모두들 노동 게시판에서 <b>풀뽑기</b> 같은 일을 하고 <b>보수</b>를 받아 맛있는 걸 사 먹으며 살아가요.</p>
-      <p>하지만 숲과 동굴에는 무서운 <b>키메라</b>들이 숨어 있어요. 토벌하면 큰 보수를 받을 수 있지만, 위험한 일이죠.</p>
-      <p>치이카와, 하치와레, 우사기와 함께 토벌을 떠나고, <b>토벌 자격 시험</b>에 합격해 더 높은 등급을 노려 보세요!</p>
-    </div>
-    <div class="box"><h3>📊 기록</h3><div class="stats" id="stats"></div></div>
-    <div class="box"><h3>⚙️ 설정</h3>
-      <p class="muted">진행 상황은 이 브라우저에 자동 저장돼요.</p>
-      <div class="row">
-        <button class="buy blue" data-act="save">지금 저장</button>
-        <button class="buy pink" data-act="reset">처음부터 다시</button>
-      </div>
-    </div>
-    <p class="card-desc" style="text-align:center">비영리 팬메이드 게임 · 원작: 나가노 「먼가 작고 귀여운 녀석」</p>`;
-  }
-  el.panel.innerHTML = h;
-  refreshPanel();
-}
-
-function setBuy(btn, html, ok) {
-  if (btn._h !== html) { btn.innerHTML = html; btn._h = html; }
-  btn.disabled = !ok;
-}
-function setText(node, text) {
-  if (node && node.textContent !== text) node.textContent = text;
-}
-
-function refreshPanel() {
-  const t = rt.tab, P = el.panel;
-  if (t === 'heroes') {
-    for (const x of HEROES) {
-      const card = P.querySelector(`[data-hero="${x.id}"]`), lv = S.heroes[x.id];
-      const n = buyN(x.baseCost, HERO_R, lv), c = heroCost(x, n);
-      card.classList.toggle('locked', lv === 0);
-      setText(card.querySelector('.lv'), lv ? 'Lv.' + lv : '미합류');
-      const nextMs = (Math.floor(lv / 10) + 1) * 10;
-      setText(card.querySelector('.card-stat'), lv
-        ? `DPS ${fmt(heroDps(x))} · Lv.${nextMs}에 공격력 ×2`
-        : `합류하면 DPS ${fmt(heroBaseDmg(x, 1) * dmgMult() / x.interval * speedMult())}`);
-      setText(card.querySelector('.sk'), `스킬 「${x.skill.name}」 ${x.skill.desc}` + (lv < SKILL_LV ? ` (Lv.${SKILL_LV} 해금)` : ''));
-      setBuy(card.querySelector('.buy'), lv ? buyLabel(n, c, '레벨업') : buyLabel(1, c, '합류시키기'), S.coins >= c);
-    }
-    const card = P.querySelector('[data-tap]');
-    const n = buyN(8, 1.1, S.tapLv - 1), c = tapCost(n);
-    setText(card.querySelector('.lv'), 'Lv.' + S.tapLv);
-    setText(card.querySelector('.card-stat'), `탭 데미지 ${fmt(tapDmg())}`);
-    setBuy(card.querySelector('.buy'), buyLabel(n, c, '연습하기'), S.coins >= c);
-  } else if (t === 'jobs') {
-    setText($('#job-total'), `(초당 ${fmt(jobIncome())})`);
-    JOBS.forEach((j, i) => {
-      const card = P.querySelector(`[data-job="${i}"]`), lv = S.jobs[i];
-      const n = buyN(j.cost, JOB_R, lv), c = jobCost(i, n);
-      card.classList.toggle('locked', lv === 0);
-      setText(card.querySelector('.lv'), lv ? 'Lv.' + lv : '');
-      const next = (jobIncomeOf(j, lv + n) - jobIncomeOf(j, lv)) * pointMult();
-      setText(card.querySelector('.card-stat'), `초당 ${fmt(jobIncomeOf(j, lv) * pointMult())} 💰 (+${fmt(next)})`);
-      setBuy(card.querySelector('.buy'), buyLabel(n, c, lv ? '더 일하기' : '일 시작'), S.coins >= c);
-    });
-  } else if (t === 'food') {
-    const c = foodCost();
-    for (const f of FOODS) {
-      const card = P.querySelector(`[data-food="${f.id}"]`), left = S.buffs[f.id];
-      setText(card.querySelector('.card-stat'), left > 0 ? `⏳ 남은 시간 ${fmtTime(left)}` : '');
-      setBuy(card.querySelector('.buy'), buyLabel(1, c, '먹기'), S.coins >= c && left < FOOD_CAP - 1);
-    }
-  } else if (t === 'exam') {
-    const g = examGain();
-    setText($('#ex-max'), String(S.maxStage));
-    setText($('#ex-gain'), g > 0 ? '+' + g : `스테이지 ${EXAM_MIN} 필요`);
-    $('#ex-btn').disabled = g <= 0;
-    const unlocked = S.points >= AUTO_SKILL_POINTS;
-    const cb = $('#auto-wrap input');
-    cb.disabled = !unlocked;
-    setText($('#auto-note'), unlocked ? '' : `(토벌 3급 필요)`);
-  } else if (t === 'info') {
-    const s = S.stats;
-    const html = [
-      ['최고 스테이지', s.bestStage], ['토벌한 키메라', fmt(s.kills)], ['보스 토벌', fmt(s.bossKills)],
-      ['톡톡 공격', fmt(s.taps)], ['누적 보수', fmt(s.totalCoins)], ['자격 시험 합격', S.prestiges + '회'],
-      ['플레이 시간', fmtTime(s.playTime)],
-    ].map(([a, b]) => `<span>${a}</span><span>${b}</span>`).join('');
-    const st = $('#stats');
-    if (st._h !== html) { st.innerHTML = html; st._h = html; }
-  }
-}
-
-el.panel.addEventListener('click', e => {
-  const b = e.target.closest('[data-act]');
-  if (!b || b.disabled) return;
-  const act = b.dataset.act;
-  if (act === 'mode') { S.buyMode = b.dataset.v === 'max' ? 'max' : +b.dataset.v; renderPanel(); return; }
-  if (act === 'hero') buyHero(b.dataset.id);
-  else if (act === 'tap') buyTap();
-  else if (act === 'job') buyJob(+b.dataset.i);
-  else if (act === 'food') buyFood(b.dataset.id);
-  else if (act === 'exam') doExam();
-  else if (act === 'save') { save(); toast('저장했어요!'); }
-  else if (act === 'reset') {
-    showModal('<h2>정말 처음부터?</h2><p>모든 진행 상황이 사라져요.</p>', [
-      { label: '아니요', cls: 'blue' },
-      { label: '지울래요', cls: 'pink', fn: () => { try { localStorage.removeItem(SAVE_KEY); } catch (e) { } S = freshState(); location.reload(); } },
-    ]);
+function tryMove(dir) {
+  S.dir = dir;
+  const [dx, dy] = DIRS[dir], nx = S.x + dx, ny = S.y + dy;
+  const ex = exitAt(nx, ny);
+  if (ex && ex.need && S.quest < ex.need) {
+    talk([['hachiware', ex.gate]]);
     return;
   }
-  refreshPanel();
-  refreshHud();
-});
-el.panel.addEventListener('change', e => {
-  if (e.target.dataset.act === 'auto') S.autoSkill = e.target.checked;
-});
+  if (!walkable(nx, ny)) return;
+  rt.prev = rt.chain.map(p => ({ ...p }));
+  for (let i = rt.chain.length - 1; i > 0; i--) rt.chain[i] = { ...rt.chain[i - 1] };
+  rt.chain[0] = { x: nx, y: ny };
+  S.x = nx; S.y = ny;
+  rt.moving = true; rt.t = 0;
+}
 
-document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => {
-  document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
-  rt.tab = b.dataset.tab;
-  renderPanel();
-  el.panel.scrollTop = 0;
-}));
-
-el.field.addEventListener('pointerdown', e => {
-  const sk = e.target.closest('.skill');
-  if (sk) { useSkill(sk.dataset.skill); return; }
-  if (e.target.closest('button')) return;
-  tapAttack(e);
-});
-el.advance.addEventListener('click', () => {
-  S.autoAdvance = true;
-  if (S.kills >= KILLS_PER_STAGE) { S.stage++; S.kills = 0; spawnMonster(); }
-  updateStageUI();
-});
-
-/* ---------- HUD ---------- */
-function refreshHud() {
-  setText(el.coins, fmt(S.coins));
-  setText(el.dps, fmt(totalDps()));
-  setText(el.income, fmt(jobIncome()));
-  setText(el.rank, rankOf(S.points).n);
-  for (const h of HEROES) {
-    const b = el.skills.querySelector(`[data-skill="${h.id}"]`);
-    const unlocked = S.heroes[h.id] >= SKILL_LV;
-    b.hidden = !unlocked;
-    if (!unlocked) continue;
-    const cd = S.skillCd[h.id], on = S.skillOn[h.id] > 0;
-    b.classList.toggle('ready', cd <= 0);
-    b.classList.toggle('active', on);
-    const pct = cd > 0 ? cd / h.skill.cd * 100 : 0;
-    b.querySelector('.sk-cd').style.background = cd > 0 ? `conic-gradient(rgba(0,0,0,.45) ${pct}%, transparent 0)` : 'none';
-    setText(b.querySelector('.sk-cd'), on ? Math.ceil(S.skillOn[h.id]) + '' : cd > 0 ? Math.ceil(cd) + '' : '');
-  }
-  let bh = '';
-  for (const f of FOODS) if (S.buffs[f.id] > 0) bh += `<div>${f.icon} ${Math.ceil(S.buffs[f.id])}s</div>`;
-  if (el.buffs._h !== bh) { el.buffs.innerHTML = bh; el.buffs._h = bh; }
-  if (rt.monster && rt.monster.boss) {
-    el.bossFill.style.width = (rt.bossTime / BOSS_TIME * 100) + '%';
-    setText(el.bossTime, Math.ceil(rt.bossTime) + '초');
+function onStep() {
+  S.steps++;
+  const ex = exitAt(S.x, S.y);
+  if (ex) { changeMap(ex); return; }
+  const enc = map.enc;
+  if (!enc) return;
+  rt.encSafe--;
+  if (map.g[S.y][S.x] === enc.on && rt.encSafe <= 0 && Math.random() < enc.rate) {
+    rt.encSafe = 4;
+    const n = randi(1, enc.max);
+    const ids = Array.from({ length: n }, () => pick(enc.list));
+    startBattle(ids);
   }
 }
 
-/* ---------- 오프라인 보상 ---------- */
-function applyOffline(sec, show) {
-  sec = Math.min(sec, 12 * 3600);
-  if (sec <= 0) return;
-  const jobs = jobIncome() * sec;
-  const dps = HEROES.reduce((a, h) => a + heroBaseDmg(h, S.heroes[h.id]) / h.interval, 0) * pointMult();
-  let battle = 0;
-  if (dps > 0) {
-    const killTime = monsterHp(S.stage) / dps + 0.45;
-    battle = sec / killTime * monsterReward(S.stage) * pointMult() * 0.5;
+function interact() {
+  const [dx, dy] = DIRS[S.dir], fx = S.x + dx, fy = S.y + dy;
+  const n = npcAt(fx, fy);
+  if (n) return EVENTS.npc[n.id]();
+  if (bossAlive(map) && map.boss.x === fx && map.boss.y === fy) return EVENTS.boss[map.boss.id]();
+  const w = weedAt(fx, fy);
+  if (w) return pullWeed(w);
+  const b = buildingAt(fx, fy);
+  if (b) return EVENTS.building[b.kind]();
+  if (map.g[fy] && map.g[fy][fx] === '~') return talk([['chiikawa', '…(물이 반짝반짝)']]);
+}
+
+function pullWeed(w) {
+  rt.pulled.add(w.x + ',' + w.y);
+  const coin = 3;
+  S.coins += coin;
+  if (S.quest === 1) S.weeds++;
+  toast(`🌿 풀을 뽑았다! +${coin}💰` + (S.quest === 1 ? `<br><small>(${Math.min(S.weeds, 5)}/5)</small>` : ''));
+  updateHud();
+}
+
+/* ---------- 맵 렌더 ---------- */
+function drawSprite(img, x, y, h, flip, bob) {
+  if (!img || !img.complete || !img.naturalWidth) return;
+  const w = h * img.naturalWidth / img.naturalHeight;
+  ctx.fillStyle = 'rgba(0,0,0,.14)';
+  ctx.beginPath(); ctx.ellipse(x, y - 2, w * .36, 5, 0, 0, 7); ctx.fill();
+  ctx.save();
+  ctx.translate(x, y - (bob || 0));
+  if (flip) ctx.scale(-1, 1);
+  ctx.drawImage(img, -w / 2, -h, w, h);
+  ctx.restore();
+}
+
+function render() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const th = THEME[map.theme];
+  ctx.fillStyle = th.bg; ctx.fillRect(0, 0, VW, VH);
+  const k = rt.moving ? rt.t : 1;
+  const lerp = i => ({ x: rt.prev[i].x + (rt.chain[i].x - rt.prev[i].x) * k, y: rt.prev[i].y + (rt.chain[i].y - rt.prev[i].y) * k });
+  const p0 = lerp(0);
+  const mw = map.w * T, mh = map.h * T;
+  const camX = mw < VW ? (mw - VW) / 2 : clamp(p0.x * T + T / 2 - VW / 2, 0, mw - VW);
+  const camY = mh < VH ? (mh - VH) / 2 : clamp(p0.y * T + T / 2 - VH / 2, 0, mh - VH);
+  ctx.drawImage(map.canvas, Math.round(-camX), Math.round(-camY), mw, mh);
+  ctx.translate(Math.round(-camX), Math.round(-camY));
+
+  for (const w of map.weeds || []) {
+    if (rt.pulled.has(w.x + ',' + w.y)) continue;
+    const X = w.x * T + T / 2, Y = w.y * T + T - 6, sway = Math.sin(rt.time * 3 + w.x) * 2;
+    ctx.fillStyle = '#5cb84a'; ctx.strokeStyle = INK; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(X - 12, Y); ctx.lineTo(X - 8 + sway, Y - 20); ctx.lineTo(X - 3, Y - 8); ctx.lineTo(X + sway, Y - 26);
+    ctx.lineTo(X + 3, Y - 8); ctx.lineTo(X + 9 + sway, Y - 18); ctx.lineTo(X + 12, Y); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff3a0'; ctx.beginPath(); ctx.arc(X + sway, Y - 27, 3, 0, 7); ctx.fill(); ctx.stroke();
   }
-  const total = jobs + battle;
-  addCoins(total);
-  for (const k in S.buffs) S.buffs[k] = Math.max(0, S.buffs[k] - sec);
-  for (const k in S.skillCd) { S.skillCd[k] = Math.max(0, S.skillCd[k] - sec); S.skillOn[k] = Math.max(0, S.skillOn[k] - sec); }
-  if (show && sec >= 60 && total > 0) {
-    showModal(`<div class="faces">${chiikawaSVG()}${hachiwareSVG()}${usagiSVG()}</div>
-      <h2>다녀왔어?</h2>
-      <p>${fmtTime(sec)} 동안 모두 열심히 일했어!</p>
-      <p>🌿 노동 보수 <b>${fmt(jobs)}</b><br>⚔️ 토벌 보수 <b>${fmt(battle)}</b></p>
-      <p class="big-num">+${fmt(total)} 💰</p>`);
+
+  const sprites = [];
+  for (const n of map.npcs) {
+    if (!npcVisible(n)) continue;
+    sprites.push({ y: n.y, draw: () => drawSprite(IMG[n.img], n.x * T + T / 2, n.y * T + T - 2, n.img === 'usagi' ? T * 1.15 : T * 1.05, false, Math.abs(Math.sin(rt.time * 2 + n.x)) * 2) });
+  }
+  if (bossAlive(map)) {
+    const b = map.boss;
+    sprites.push({ y: b.y, draw: () => drawSprite(IMG[b.img], b.x * T + T / 2, b.y * T + T, T * 2, false, Math.abs(Math.sin(rt.time * 1.5)) * 3) });
+  }
+  S.party.forEach((m, i) => {
+    if (i >= rt.chain.length) return;
+    const p = lerp(i);
+    const dir = i === 0 ? S.dir : (rt.chain[i - 1].x < rt.chain[i].x ? 'left' : rt.chain[i - 1].x > rt.chain[i].x ? 'right' : S.dir);
+    const bob = rt.moving ? Math.abs(Math.sin(k * Math.PI)) * 5 : Math.abs(Math.sin(rt.time * 2.4 + i)) * 1.5;
+    const h = m.id === 'chiikawa' ? T * 1.05 : T * 1.12;
+    sprites.push({ y: p.y + (i ? -0.01 * i : 0.02), draw: () => drawSprite(IMG[m.id], p.x * T + T / 2, p.y * T + T - 2, h, dir === 'left', bob) });
+  });
+  sprites.sort((a, b) => a.y - b.y).forEach(s => s.draw());
+
+  if (mode === 'map' && !rt.moving) {
+    const [dx, dy] = DIRS[S.dir], fx = S.x + dx, fy = S.y + dy;
+    const can = npcAt(fx, fy) || weedAt(fx, fy) || buildingAt(fx, fy) || (bossAlive(map) && map.boss.x === fx && map.boss.y === fy);
+    if (can) {
+      const bx = S.x * T + T / 2, by = S.y * T - 22 - Math.abs(Math.sin(rt.time * 4)) * 4;
+      ctx.fillStyle = '#fff'; ctx.strokeStyle = INK; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(bx - 11, by - 11, 22, 20, 7); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#e8495f'; ctx.font = '15px Jua, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('!', bx, by);
+    }
   }
 }
 
 /* ---------- 메인 루프 ---------- */
-function update(dt) {
-  S.stats.playTime += dt;
-  for (const k in S.buffs) if (S.buffs[k] > 0) S.buffs[k] = Math.max(0, S.buffs[k] - dt);
-  for (const k in S.skillCd) {
-    if (S.skillCd[k] > 0) S.skillCd[k] = Math.max(0, S.skillCd[k] - dt);
-    if (S.skillOn[k] > 0) S.skillOn[k] = Math.max(0, S.skillOn[k] - dt);
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000);
+  last = now;
+  rt.time += dt;
+  if (S) S.playTime += dt;
+  if (mode === 'map') {
+    if (rt.moving) {
+      rt.t += dt / MOVE_TIME;
+      if (rt.t >= 1) { rt.t = 1; rt.moving = false; onStep(); }
+    }
+    if (!rt.moving && mode === 'map' && held.length) tryMove(held[held.length - 1]);
   }
-  addCoins(jobIncome() * dt);
+  if (map && mode !== 'title' && mode !== 'battle') render();
+  requestAnimationFrame(frame);
+}
 
-  if (!rt.monster) {
-    rt.respawn -= dt;
-    if (rt.respawn <= 0) spawnMonster();
-  } else {
-    const sp = speedMult();
-    for (const h of HEROES) {
-      if (S.heroes[h.id] <= 0) continue;
-      rt.heroTimer[h.id] = (rt.heroTimer[h.id] || 0) + dt * sp;
-      let swings = 0;
-      while (rt.heroTimer[h.id] >= h.interval && rt.monster) {
-        rt.heroTimer[h.id] -= h.interval;
-        hit(heroDmg(h), 'hero');
-        swings++;
+/* ---------- HUD · 토스트 ---------- */
+function updateHud() {
+  if (!S) return;
+  $('#hud-coins b').textContent = fmt(S.coins);
+  $('#objective').textContent = objective();
+}
+let toastTimer = 0;
+function toast(html) {
+  const t = $('#toast');
+  t.innerHTML = html;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1500);
+}
+function objective() {
+  switch (S.quest) {
+    case 0: return '📌 노동 게시판에 가 보자';
+    case 1: return S.weeds >= 5 ? '📌 노동 게시판에 보고하자' : `📌 풀숲에서 풀 뽑기 (${S.weeds}/5)`;
+    case 2: return S.kills >= 5 ? '📌 노동 게시판에 보고하자' : `📌 풀숲의 키메라 토벌 (${S.kills}/5)`;
+    case 3: return S.flags.boss1 ? '📌 노동 게시판에 보고하자' : '📌 깊은 숲의 「숲의 주인」 토벌';
+    case 4: return S.flags.boss2 ? '📌 노동 게시판에 보고하자' : '📌 자격 시험: 동굴의 「크고 강한 녀석」 토벌';
+    default: return S.repeat ? (S.kills >= 10 ? '📌 노동 게시판에 보고하자' : `📌 오늘의 토벌 의뢰 (${S.kills}/10)`) : '⭐ 토벌 5급! 자유롭게 모험하자';
+  }
+}
+
+/* ---------- 대화 ---------- */
+let dlgState = null;
+function talk(lines) {
+  return new Promise(res => {
+    const prevMode = mode === 'dialog' ? 'map' : mode;
+    mode = 'dialog';
+    held.length = 0;
+    dlgState = { lines, i: -1, res, prevMode, typing: false, timer: 0 };
+    $('#dialog').hidden = false;
+    nextLine();
+  });
+}
+function nextLine() {
+  const d = dlgState;
+  if (d.typing) {
+    clearInterval(d.timer); d.typing = false;
+    $('#dlg-text').textContent = d.full;
+    return;
+  }
+  d.i++;
+  if (d.i >= d.lines.length) {
+    $('#dialog').hidden = true;
+    dlgState = null;
+    mode = d.prevMode === 'trans' ? 'map' : d.prevMode;
+    d.res();
+    return;
+  }
+  const [who, text] = d.lines[d.i], sp = SPEAKERS[who] || SPEAKERS.n;
+  $('#dlg-name').textContent = sp.name;
+  $('#dlg-face').innerHTML = sp.img ? `<img src="${sp.img}" alt="">` : '';
+  d.full = text;
+  let n = 0;
+  d.typing = true;
+  const el = $('#dlg-text');
+  el.textContent = '';
+  d.timer = setInterval(() => {
+    n++;
+    el.textContent = text.slice(0, n);
+    if (n >= text.length) { clearInterval(d.timer); d.typing = false; }
+  }, 26);
+}
+
+/* ---------- 이벤트 ---------- */
+function healAll() {
+  for (const m of S.party) { const st = heroStats(m); m.hp = st.maxHp; m.mp = st.maxMp; }
+}
+function addMember(id) {
+  const avg = Math.round(S.party.reduce((a, m) => a + m.lv, 0) / S.party.length);
+  S.party.push(newMember(id, Math.max(3, avg)));
+  rt.chain.push({ ...rt.chain[rt.chain.length - 1] });
+  rt.prev.push({ ...rt.prev[rt.prev.length - 1] });
+}
+
+const EVENTS = {
+  npc: {
+    async armor() { await boardEvent(); },
+    async kuri() {
+      await talk([['kuri', pick(['프하ー! 일 끝나고 먹는 라멘은 최고지.', '토벌 후엔 뜨끈한 라멘을 먹어 둬. 기력이 쫙 돌아온다고.', '오늘도 수고했어. 맛있는 거 먹고 푹 자는 게 제일이야.'])]]);
+    },
+    async rakko() {
+      const tips = [
+        '토벌의 기본은… 잘 먹고, 잘 쉬는 것이다.',
+        '숲의 주인은 Lv.7, 동굴의 녀석은 Lv.12 정도면 상대할 수 있을 거다.',
+        '도구점에서 무기와 부적을 강화해 둬라. 차이가 크다.',
+        '위험하면 무리하지 말고 마을로 돌아와 쉬어라.',
+      ];
+      await talk([['rakko', pick(tips)]]);
+    },
+    async usagi() {
+      if (S.quest < 2) {
+        await talk([['usagi', '…하아?'], ['usagi', '후루루루루…'], ['hachiware', '어디론가 뛰어가 버릴 것 같은 토끼다…']]);
+        return;
       }
-      if (swings) heroAttackFx(h.id);
+      await talk([
+        ['usagi', '야하!'],
+        ['hachiware', '앗, 혹시 엄청 강하다는 소문의 그 토끼…?'],
+        ['chiikawa', '…!!'],
+        ['usagi', '우라! 우라라!'],
+        ['hachiware', '같이 토벌하러 가 준대! 와~ 든든하다!'],
+        ['n', '우사기가 동료가 되었다!'],
+      ]);
+      S.flags.usagi = true;
+      addMember('usagi');
+      save();
+    },
+  },
+  boss: {
+    async boss1() {
+      if (S.quest < 3) { await talk([['n', '커다란 버섯이 쿨쿨 자고 있다…'], ['chiikawa', '(살금살금…)']]); return; }
+      await talk([['n', '커다란 버섯이 눈을 번쩍 떴다!'], ['chiikawa', '으…!'], ['hachiware', '이게 숲의 주인…! 다 같이 힘내자!']]);
+      const won = await startBattle(['boss1', 'mush'], { boss: true });
+      if (won) {
+        S.flags.boss1 = true;
+        await talk([['hachiware', '해냈다~! 숲의 주인을 토벌했어!'], ['chiikawa', '…해냈다!'], ['hachiware', '노동 게시판에 보고하러 가자!']]);
+        updateHud(); save();
+      }
+    },
+    async boss2() {
+      await talk([['n', '동굴 깊은 곳에서 거대한 그림자가 일어섰다…'], ['chiikawa', '으… 크, 크다…'], ['usagi', '우라!!'], ['hachiware', '이게 자격 시험…! 어떻게든 될 거야!']]);
+      const won = await startBattle(['boss2'], { boss: true });
+      if (won) {
+        S.flags.boss2 = true;
+        await talk([['usagi', '야하ー!!'], ['chiikawa', '해냈다…! 해냈어…!'], ['hachiware', '빨리 게시판에 가서 결과를 듣자!']]);
+        updateHud(); save();
+      }
+    },
+  },
+  building: {
+    async home() {
+      await talk([['n', '치이카와네 집이다. 폭신한 이불이 있다.']]);
+      healAll();
+      save();
+      $('#fade').classList.add('on'); await sleep(500); $('#fade').classList.remove('on');
+      await talk([['chiikawa', '쿨… 쿨…'], ['n', '푹 쉬었다! HP와 기력이 모두 회복되었다.\n(진행 상황을 저장했다)']]);
+    },
+    async board() { await boardEvent(); },
+    async shop() { await talk([['armor', '어서 오세요~ 도구점이에요. 천천히 보세요.']]); openShop(); },
+    async ramen() { await talk([['ramen', '어서 오세요! 따끈한 라멘 있어요.']]); openRamen(); },
+  },
+};
+
+async function boardEvent() {
+  const q = S.quest;
+  if (q === 0) {
+    await talk([
+      ['armor', '어서 오세요. 오늘의 일은 「풀뽑기」예요.'],
+      ['armor', '마을 오른쪽 출구로 나가면 풀숲이 있어요. 거기서 풀을 5개 뽑아 와 주세요.'],
+      ['hachiware', '좋아, 해 보자! 치이카와!'],
+      ['chiikawa', '와…!'],
+      ['n', '풀 앞에서 「조사」를 누르면 뽑을 수 있다.'],
+    ]);
+    S.quest = 1; S.weeds = 0;
+  } else if (q === 1) {
+    if (S.weeds < 5) { await talk([['armor', `풀숲에서 풀을 5개 뽑아 와 주세요. (${S.weeds}/5)`]]); return; }
+    S.coins += 50;
+    await talk([
+      ['armor', '수고하셨어요! 보수 50💰예요.'],
+      ['chiikawa', '…!! (반짝반짝)'],
+      ['armor', '그런데… 혹시 토벌 일도 해 보시겠어요? 풀숲에 키메라가 늘어나서 다들 곤란하대요.'],
+      ['chiikawa', '토, 토벌…!'],
+      ['hachiware', '괜찮아! 둘이면 어떻게든 될 거야!'],
+      ['armor', '풀숲의 키메라를 5마리 토벌해 주세요. 키 큰 풀숲을 걸으면 나타날 거예요.'],
+    ]);
+    S.quest = 2; S.kills = 0;
+  } else if (q === 2) {
+    if (S.kills < 5) {
+      await talk([['armor', `풀숲의 키메라를 토벌해 주세요. (${S.kills}/5)`], ['armor', '참, 풀숲에 엄청 강한 토끼가 있다는 소문이 있어요.']]);
+      return;
     }
-    if (rt.monster && rt.monster.boss) {
-      rt.bossTime -= dt;
-      if (rt.bossTime <= 0) bossFail();
+    S.coins += 120;
+    await talk([
+      ['armor', '대단해요! 보수 120💰예요.'],
+      ['armor', '실은… 깊은 숲의 「숲의 주인」이 날뛰고 있어서 큰일이에요. 토벌해 주실 수 있을까요?'],
+      ['hachiware', '숲의 주인…! 준비 단단히 하고 가자!'],
+      ['n', '풀숲 오른쪽 끝에서 깊은 숲으로 갈 수 있게 되었다.'],
+    ]);
+    S.quest = 3;
+  } else if (q === 3) {
+    if (!S.flags.boss1) { await talk([['armor', '숲의 주인은 깊은 숲 오른쪽 위에 있대요. 조심하세요!']]); return; }
+    S.coins += 300;
+    await talk([
+      ['armor', '숲의 주인을 토벌하다니…! 보수 300💰예요.'],
+      ['armor', '이 정도 실력이면… 「토벌 자격 시험」을 봐도 되겠어요!'],
+      ['chiikawa', '자격… 시험…!'],
+      ['armor', '시험 과제는 동굴 깊은 곳의 「크고 강한 녀석」 토벌이에요. 깊은 숲 오른쪽 아래에 동굴 입구가 있어요.'],
+      ['usagi', '우라!'],
+      ['hachiware', '합격하면 진짜 토벌자다! 해 보자!'],
+    ]);
+    S.quest = 4;
+  } else if (q === 4) {
+    if (!S.flags.boss2) { await talk([['armor', '자격 시험, 응원할게요! 동굴 속은 어두우니 약초를 꼭 챙기세요.']]); return; }
+    S.coins += 1000;
+    await talk([
+      ['armor', '…시험 결과를 발표하겠습니다.'],
+      ['chiikawa', '(두근두근…)'],
+      ['armor', '합격이에요! 오늘부터 여러분은 「토벌 5급」이에요! 축하해요!'],
+      ['chiikawa', '…!! 와아…!'],
+      ['hachiware', '해냈다ー!! 우리 진짜 토벌자야!'],
+      ['usagi', '야하ー!! 우라라라ー!!'],
+      ['armor', '기념 보수 1000💰예요. 오늘은 맛있는 걸 잔뜩 드세요.'],
+      ['hachiware', '라멘 먹으러 가자~!'],
+      ['n', '~ 축하합니다! 이야기 클리어! ~\n앞으로도 자유롭게 토벌을 즐길 수 있어요.'],
+    ]);
+    S.quest = 5; S.repeat = false;
+  } else {
+    if (!S.repeat) {
+      await talk([['armor', '오늘의 토벌 의뢰예요. 어디서든 키메라를 10마리 토벌해 주세요.']]);
+      S.repeat = true; S.kills = 0;
+    } else if (S.kills < 10) {
+      await talk([['armor', `오늘의 토벌 의뢰 진행 중이에요. (${S.kills}/10)`]]);
+    } else {
+      const reward = 150 + Math.round(S.party[0].lv * 25);
+      S.coins += reward;
+      S.repeat = false;
+      await talk([['armor', `수고하셨어요! 보수 ${reward}💰예요.`], ['chiikawa', '…헤헤.']]);
     }
   }
-
-  if (S.autoSkill && S.points >= AUTO_SKILL_POINTS) {
-    for (const h of HEROES) if (S.heroes[h.id] >= SKILL_LV && S.skillCd[h.id] <= 0) useSkill(h.id);
-  }
-
-  rt.talkAcc -= dt;
-  if (rt.talkAcc <= 0) {
-    rt.talkAcc = rand(6, 12);
-    const joined = HEROES.filter(h => S.heroes[h.id] > 0);
-    const h = pick(joined);
-    say(h.id, pick(h.lines));
-  }
-
-  refreshHud();
-  rt.uiAcc += dt;
-  if (rt.uiAcc > 0.2) { rt.uiAcc = 0; refreshPanel(); }
-  rt.saveAcc += dt;
-  if (rt.saveAcc > 10) { rt.saveAcc = 0; save(); }
+  updateHud();
+  save();
 }
 
-function loop() {
-  const now = Date.now();
-  const gap = (now - rt.lastReal) / 1000;
-  rt.lastReal = now;
-  if (gap > 3) applyOffline(gap, gap >= 60);
-  else update(Math.max(0, gap));
-  requestAnimationFrame(loop);
+/* ---------- 전투 ---------- */
+const B = { units: [], enemies: [], heroes: [], pick: null, cur: null, over: false };
+const bEl = {
+  root: $('#battle'), field: $('#b-field'), enemies: $('#b-enemies'), msg: $('#b-msg'),
+  party: $('#b-party'), cmd: $('#b-cmd'), floats: $('#b-floats'),
+};
+const alive = arr => arr.filter(u => u.hp > 0);
+
+function makeHeroUnit(m) {
+  return {
+    side: 'hero', m, id: m.id, name: HERO[m.id].name, buffs: {}, guard: false,
+    get hp() { return m.hp; }, set hp(v) { m.hp = v; },
+    get mp() { return m.mp; }, set mp(v) { m.mp = v; },
+    get st() { return heroStats(m); },
+  };
+}
+function makeEnemyUnit(id, i, letter) {
+  const d = EN[id];
+  return { side: 'enemy', key: i, id, def: d, name: d.n + letter, hp: d.hp, buffs: {}, acts: 0, st: { maxHp: d.hp, atk: d.atk, def: d.def, spd: d.spd } };
+}
+const atkOf = u => u.st.atk * (u.buffs.teary > 0 ? 1.6 : 1) * (u.buffs.song > 0 ? 1.4 : 1);
+const critOf = u => u.side === 'hero' ? .08 + (u.buffs.teary > 0 ? .4 : 0) : .04;
+
+function startBattle(ids, opts = {}) {
+  return new Promise(async res => {
+    mode = 'battle';
+    held.length = 0;
+    B.boss = !!opts.boss;
+    B.over = false;
+    const counts = {};
+    ids.forEach(id => counts[id] = (counts[id] || 0) + 1);
+    const seen = {};
+    B.enemies = ids.map((id, i) => {
+      seen[id] = (seen[id] || 0) + 1;
+      return makeEnemyUnit(id, i, counts[id] > 1 ? ' ' + 'ABC'[seen[id] - 1] : '');
+    });
+    B.heroes = S.party.map(makeHeroUnit);
+    const th = THEME[map.theme];
+    bEl.field.style.background = `linear-gradient(${th.sky[0]}, ${th.sky[1]} 60%, ${th.ground} 60%, ${th.ground})`;
+    bEl.enemies.innerHTML = B.enemies.map(e => `
+      <div class="en ${e.def.boss ? 'boss' : ''}" data-k="${e.key}">
+        <div class="en-name">${e.name}</div>
+        <div class="bar"><i></i></div>
+        <div class="en-img">${monsterSVG(e.def, e.def.boss)}</div>
+      </div>`).join('');
+    bEl.party.innerHTML = B.heroes.map((h, i) => `
+      <div class="pc" data-i="${i}">
+        <img src="img/${h.id}.png" alt="">
+        <div class="pc-name">${h.name} <small>Lv.${h.m.lv}</small></div>
+        <div class="bar"><i></i></div>
+        <div class="bar mp"><i></i></div>
+        <div class="pc-num"><span class="hpn"></span><span class="mpn"></span></div>
+        <div class="buffs"></div>
+      </div>`).join('');
+    bEl.cmd.innerHTML = '';
+    bEl.root.hidden = false;
+    bEl.root.classList.remove('enter'); void bEl.root.offsetWidth; bEl.root.classList.add('enter');
+    refreshBattle();
+    const names = [...new Set(B.enemies.map(e => e.def.n))].join(', ');
+    await say(B.boss ? `${josa(names, '이가')} 앞을 가로막았다!` : `${josa(names, '이가')} 나타났다!`, 900);
+    const result = await battleLoop();
+    await endBattle(result);
+    res(result === 'win');
+  });
 }
 
-document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
-window.addEventListener('pagehide', save);
+function refreshBattle() {
+  for (const e of B.enemies) {
+    const el = enemyEl(e);
+    el.querySelector('.bar i').style.width = Math.max(0, e.hp / e.st.maxHp * 100) + '%';
+    el.classList.toggle('dead', e.hp <= 0);
+  }
+  B.heroes.forEach((h, i) => {
+    const el = bEl.party.children[i], st = h.st;
+    el.querySelector('.bar i').style.width = Math.max(0, h.hp / st.maxHp * 100) + '%';
+    el.querySelector('.bar.mp i').style.width = Math.max(0, h.mp / st.maxMp * 100) + '%';
+    el.querySelector('.hpn').textContent = `HP ${Math.max(0, h.hp)}/${st.maxHp}`;
+    el.querySelector('.mpn').textContent = `기력 ${h.mp}`;
+    el.classList.toggle('ko', h.hp <= 0);
+    el.classList.toggle('active', B.cur === h);
+    el.querySelector('.buffs').textContent = (h.buffs.teary > 0 ? '💧각성 ' : '') + (h.buffs.song > 0 ? '🎸응원 ' : '') + (h.guard ? '🛡️방어' : '');
+  });
+}
+const enemyEl = e => bEl.enemies.querySelector(`.en[data-k="${e.key}"]`);
+const heroEl = h => bEl.party.children[B.heroes.indexOf(h)];
+const unitEl = u => u.side === 'hero' ? heroEl(u) : enemyEl(u);
+
+async function say(text, ms = 650) {
+  bEl.msg.textContent = text;
+  await sleep(ms);
+}
+function floatAt(u, text, cls) {
+  const el = unitEl(u), r = el.getBoundingClientRect(), base = bEl.root.getBoundingClientRect();
+  const d = document.createElement('div');
+  d.className = 'float ' + (cls || '');
+  d.textContent = text;
+  d.style.left = (r.left - base.left + r.width / 2 + rand(-12, 12)) + 'px';
+  d.style.top = (r.top - base.top + (u.side === 'hero' ? 10 : r.height * .35)) + 'px';
+  d.addEventListener('animationend', () => d.remove());
+  bEl.floats.appendChild(d);
+}
+function anim(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+
+function damage(att, tgt, mult) {
+  let dmg = Math.max(1, atkOf(att) * mult - tgt.st.def * .5) * rand(.9, 1.1);
+  const crit = Math.random() < critOf(att);
+  if (crit) dmg *= 1.6;
+  if (tgt.guard) dmg *= .5;
+  dmg = Math.max(1, Math.round(dmg));
+  tgt.hp = Math.max(0, tgt.hp - dmg);
+  floatAt(tgt, (crit ? '치명타! ' : '') + dmg, crit ? 'crit' : '');
+  anim(unitEl(tgt), tgt.side === 'hero' ? 'hurt' : 'hit');
+  refreshBattle();
+  return { dmg, crit };
+}
+
+async function battleLoop() {
+  while (true) {
+    const order = [...B.heroes, ...B.enemies, ...B.enemies.filter(e => e.def.twice)]
+      .filter(u => u.hp > 0)
+      .map(u => ({ u, s: u.st.spd * rand(.85, 1.15) }))
+      .sort((a, b) => b.s - a.s).map(o => o.u);
+    for (const u of order) {
+      if (u.hp <= 0) continue;
+      if (u.side === 'hero') {
+        u.guard = false;
+        const act = await chooseAction(u);
+        if (act.type === 'flee') {
+          await say('도망치려고 했다…', 500);
+          if (Math.random() < .6) { await say('무사히 도망쳤다!', 700); return 'flee'; }
+          await say('하지만 도망칠 수 없었다!', 700);
+        } else await heroAct(u, act);
+      } else await enemyAct(u);
+      for (const k in u.buffs) if (u.buffs[k] > 0) u.buffs[k]--;
+      refreshBattle();
+      if (!alive(B.enemies).length) return 'win';
+      if (!alive(B.heroes).length) return 'lose';
+    }
+  }
+}
+
+function chooseAction(u) {
+  return new Promise(res => {
+    B.cur = u;
+    B.resolve = act => { B.cur = null; B.pick = null; bEl.cmd.innerHTML = ''; clearTargets(); refreshBattle(); res(act); };
+    refreshBattle();
+    showMainCmd(u);
+  });
+}
+function showMainCmd(u) {
+  clearTargets();
+  bEl.msg.textContent = `${josa(u.name, '은는')} 무엇을 할까?`;
+  bEl.cmd.innerHTML = `
+    <button class="btn" data-c="attack">⚔️ 공격</button>
+    <button class="btn pink" data-c="skills">✨ 스킬</button>
+    <button class="btn yellow" data-c="items">🎒 아이템</button>
+    <button class="btn blue" data-c="guard">🛡️ 방어</button>
+    <button class="btn white" data-c="flee" ${B.boss ? 'disabled' : ''}>💨 도망</button>`;
+}
+function showSkills(u) {
+  const list = HERO[u.id].skills.filter(s => u.m.lv >= s.lv);
+  bEl.cmd.innerHTML = list.map(s =>
+    `<button class="btn pink" data-c="skill" data-s="${s.id}" ${u.mp < s.mp ? 'disabled' : ''}>${s.name}<small>기력 ${s.mp} · ${s.desc}</small></button>`).join('') +
+    `<button class="btn white" data-c="back">← 뒤로</button>`;
+}
+function showItems() {
+  const own = Object.keys(ITEMS).filter(k => S.items[k] > 0);
+  bEl.cmd.innerHTML = (own.length ? own.map(k =>
+    `<button class="btn yellow" data-c="item" data-it="${k}">${ITEMS[k].icon} ${ITEMS[k].name} ×${S.items[k]}<small>${ITEMS[k].desc}</small></button>`).join('')
+    : '<div class="hint">가진 아이템이 없다…</div>') + `<button class="btn white" data-c="back">← 뒤로</button>`;
+}
+function clearTargets() {
+  bEl.root.querySelectorAll('.targetable').forEach(e => e.classList.remove('targetable'));
+}
+function askTarget(kind, act) {
+  const list = kind === 'enemy' ? alive(B.enemies) : kind === 'ko' ? B.heroes.filter(h => h.hp <= 0) : alive(B.heroes);
+  if (!list.length) { bEl.msg.textContent = '대상이 없다!'; return; }
+  if (kind === 'enemy' && list.length === 1) { B.resolve({ ...act, target: list[0] }); return; }
+  B.pick = { kind, act };
+  list.forEach(u => unitEl(u).classList.add('targetable'));
+  bEl.msg.textContent = kind === 'enemy' ? '누구를 공격할까?' : '누구에게 쓸까?';
+  bEl.cmd.innerHTML = `<div class="hint">대상을 눌러 주세요</div><button class="btn white wide" data-c="back">← 뒤로</button>`;
+}
+
+bEl.cmd.addEventListener('click', e => {
+  const b = e.target.closest('[data-c]');
+  if (!b || b.disabled || !B.cur) return;
+  const u = B.cur, c = b.dataset.c;
+  if (c === 'attack') askTarget('enemy', { type: 'attack' });
+  else if (c === 'skills') showSkills(u);
+  else if (c === 'items') showItems();
+  else if (c === 'guard') B.resolve({ type: 'guard' });
+  else if (c === 'flee') B.resolve({ type: 'flee' });
+  else if (c === 'back') { B.pick = null; showMainCmd(u); }
+  else if (c === 'skill') {
+    const s = HERO[u.id].skills.find(x => x.id === b.dataset.s);
+    if (s.target === 'enemy') askTarget('enemy', { type: 'skill', s });
+    else B.resolve({ type: 'skill', s });
+  } else if (c === 'item') {
+    const it = ITEMS[b.dataset.it];
+    askTarget(it.revive ? 'ko' : 'ally', { type: 'item', key: b.dataset.it });
+  }
+});
+bEl.root.addEventListener('click', e => {
+  if (!B.pick) return;
+  const en = e.target.closest('.en.targetable'), pc = e.target.closest('.pc.targetable');
+  if (en) B.resolve({ ...B.pick.act, target: B.enemies[+en.dataset.k] });
+  else if (pc) B.resolve({ ...B.pick.act, target: B.heroes[+pc.dataset.i] });
+});
+
+function retarget(t) { return t && t.hp > 0 ? t : pick(alive(B.enemies)); }
+
+async function heroAct(u, act) {
+  const el = heroEl(u);
+  anim(el, 'hop');
+  const lines = HERO[u.id].say.atk;
+  if (act.type === 'attack') {
+    const t = retarget(act.target);
+    const r = damage(u, t, 1);
+    await say(`${u.name}: "${pick(lines)}" ${t.name}에게 ${r.dmg}의 피해!`);
+    await checkDead(t);
+  } else if (act.type === 'guard') {
+    u.guard = true;
+    refreshBattle();
+    await say(`${josa(u.name, '은는')} 몸을 웅크리고 방어하고 있다!`);
+  } else if (act.type === 'item') {
+    const it = ITEMS[act.key], t = act.target;
+    S.items[act.key]--;
+    const st = t.st;
+    if (it.revive) {
+      if (t.hp > 0) { await say('효과가 없었다…'); return; }
+      t.hp = Math.round(st.maxHp * it.revive);
+      floatAt(t, '부활!', 'heal');
+      refreshBattle();
+      await say(`${josa(it.name, '을를')} 먹고 ${josa(t.name, '이가')} 일어났다!`);
+    } else {
+      if (it.hp) { const v = Math.min(it.hp, st.maxHp - t.hp); t.hp += v; floatAt(t, '+' + v, 'heal'); await say(`${josa(it.name, '을를')} 사용했다! ${t.name}의 HP가 ${v} 회복!`); }
+      if (it.mp) { const v = Math.min(it.mp, st.maxMp - t.mp); t.mp += v; floatAt(t, '+' + v, 'heal'); await say(`${josa(it.name, '을를')} 마셨다! ${t.name}의 기력이 ${v} 회복!`); }
+      refreshBattle();
+    }
+  } else if (act.type === 'skill') {
+    const s = act.s;
+    u.mp -= s.mp;
+    refreshBattle();
+    await say(`${u.name}의 「${s.name}」!`, 550);
+    if (s.id === 'teary') {
+      u.buffs.teary = 4;
+      refreshBattle();
+      await say(`${u.name}: "야ー!! 야ー!!" 눈물을 꾹 참고 각성했다!`);
+    } else if (s.id === 'nantoka') {
+      for (const h of alive(B.heroes)) {
+        const st = h.st, v = Math.min(st.maxHp - h.hp, Math.max(15, Math.round(st.maxHp * .3)));
+        h.hp += v; floatAt(h, '+' + v, 'heal');
+      }
+      refreshBattle();
+      await say('하치와레: "어떻게든 될 거야!" 모두의 HP가 회복되었다!');
+    } else if (s.id === 'song') {
+      for (const h of alive(B.heroes)) h.buffs.song = h === u ? 4 : 3;
+      refreshBattle();
+      await say('♪ 기타 소리에 모두 힘이 솟는다! 공격력 업!');
+    } else if (s.target === 'all') {
+      const tg = alive(B.enemies);
+      let total = 0;
+      for (const t of tg) total += damage(u, t, s.mult).dmg;
+      await say(`${u.name}: "${s.name}" 적 전체에게 총 ${total}의 피해!`);
+      for (const t of tg) await checkDead(t);
+    } else if (s.target === 'random') {
+      for (let i = 0; i < s.hits; i++) {
+        const t = pick(alive(B.enemies));
+        if (!t) break;
+        const r = damage(u, t, s.mult);
+        await say(`냥! ${t.name}에게 ${r.dmg}의 피해!`, 380);
+        await checkDead(t);
+      }
+    } else {
+      const t = retarget(act.target);
+      const r = damage(u, t, s.mult);
+      await say(`${t.name}에게 ${r.dmg}의 큰 피해!`);
+      await checkDead(t);
+    }
+  }
+}
+async function checkDead(t) {
+  if (t.hp > 0 || t._dead) return;
+  t._dead = true;
+  refreshBattle();
+  await say(`${josa(t.name, '을를')} 토벌했다!`, 500);
+}
+
+async function enemyAct(e) {
+  const targets = alive(B.heroes);
+  if (!targets.length) return;
+  e.acts++;
+  anim(enemyEl(e), 'act');
+  if (e.def.aoe && e.acts % 3 === 0) {
+    await say(`${e.name}의 「${e.def.aoe}」!`, 600);
+    for (const h of targets) damage(e, h, .8);
+    await say('모두에게 큰 피해!');
+  } else {
+    const t = pick(targets);
+    const r = damage(e, t, 1);
+    await say(`${e.name}의 공격! ${josa(t.name, '은는')} ${r.dmg}의 피해를 입었다!${Math.random() < .5 ? ' "' + pick(HERO[t.id].say.hurt) + '"' : ''}`);
+  }
+  for (const h of targets) {
+    if (h.hp <= 0) await say(`${josa(h.name, '은는')} 쓰러지고 말았다…`, 600);
+  }
+}
+
+async function endBattle(result) {
+  if (result === 'win') {
+    const exp = B.enemies.reduce((a, e) => a + e.def.exp, 0);
+    const coin = B.enemies.reduce((a, e) => a + e.def.coin, 0);
+    S.coins += coin;
+    if ((S.quest === 2 && map.id === 'field') || (S.quest >= 5 && S.repeat)) S.kills += B.enemies.length;
+    await say(`승리! 경험치 ${exp}, 보수 ${coin}💰를 얻었다!`, 1000);
+    for (const h of B.heroes) {
+      if (h.hp <= 0) { h.hp = 1; continue; }
+      const m = h.m;
+      m.exp += exp;
+      while (m.exp >= expNext(m.lv)) {
+        m.exp -= expNext(m.lv);
+        const before = heroStats(m);
+        m.lv++;
+        const after = heroStats(m);
+        m.hp += after.maxHp - before.maxHp;
+        m.mp += after.maxMp - before.maxMp;
+        refreshBattle();
+        heroEl(h).querySelector('.pc-name small').textContent = 'Lv.' + m.lv;
+        anim(heroEl(h), 'hop');
+        await say(`🎉 ${h.name}의 레벨이 ${m.lv}(으)로 올랐다!`, 900);
+        for (const s of HERO[m.id].skills) if (s.lv === m.lv) await say(`✨ ${josa(h.name, '은는')} 「${s.name}」을(를) 배웠다!`, 1000);
+      }
+    }
+  } else if (result === 'lose') {
+    await say('눈앞이 캄캄해졌다…', 1200);
+  }
+  bEl.root.hidden = true;
+  if (result === 'lose') {
+    S.coins = Math.floor(S.coins / 2);
+    healAll();
+    enterMap('town', 4, 5, 'down');
+    mode = 'map';
+    await talk([['hachiware', '치이카와, 괜찮아…? 집까지 겨우 돌아왔어.'], ['chiikawa', '흐에…'], ['n', '보수의 절반을 잃어버렸다… 푹 쉬고 다시 도전하자.']]);
+  } else {
+    mode = 'map';
+  }
+  updateHud();
+  save();
+}
+
+/* ---------- 패널: 메뉴 · 상점 ---------- */
+const panel = { el: $('#panel'), title: $('#panel-title'), tabs: $('#panel-tabs'), body: $('#panel-body'), render: null, tab: null, onClick: null };
+function openPanel(title, tabs, render, onClick) {
+  mode = 'panel';
+  held.length = 0;
+  panel.title.textContent = title;
+  panel.tab = tabs ? tabs[0][0] : null;
+  panel.tabs.innerHTML = tabs ? tabs.map(([k, l]) => `<button data-tab="${k}">${l}</button>`).join('') : '';
+  panel.render = render; panel.onClick = onClick;
+  panel.el.hidden = false;
+  redrawPanel();
+}
+function redrawPanel() {
+  panel.tabs.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.tab === panel.tab));
+  panel.body.innerHTML = panel.render(panel.tab);
+  updateHud();
+}
+function closePanel() { panel.el.hidden = true; mode = 'map'; }
+$('#panel-close').addEventListener('click', closePanel);
+panel.tabs.addEventListener('click', e => { const b = e.target.closest('button'); if (b) { panel.tab = b.dataset.tab; redrawPanel(); } });
+panel.body.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b && !b.disabled) panel.onClick(b.dataset, b); });
+
+function memberCard(m) {
+  const st = heroStats(m), h = HERO[m.id];
+  return `<div class="card">
+    <div class="ico"><img src="img/${m.id}.png" alt=""></div>
+    <div class="main">
+      <b>${h.name}</b> <span class="muted">Lv.${m.lv}</span>
+      <div class="muted">HP ${m.hp}/${st.maxHp} · 기력 ${m.mp}/${st.maxMp}</div>
+      <div class="bar exp"><i style="width:${m.exp / expNext(m.lv) * 100}%"></i></div>
+      <div class="stats"><span>공격 ${st.atk}</span><span>방어 ${st.def}</span><span>속도 ${st.spd}</span></div>
+      <div class="muted">무기 +${m.wpn} · 부적 +${m.charm} · 다음 레벨까지 ${expNext(m.lv) - m.exp}</div>
+      <div class="skills-list">${h.skills.map(s => `<span class="${m.lv >= s.lv ? 'on' : ''}">${m.lv >= s.lv ? '✨' : '🔒'}${s.name}${m.lv >= s.lv ? '' : ' (Lv.' + s.lv + ')'}</span>`).join('')}</div>
+    </div>
+  </div>`;
+}
+function useItemField(key, i) {
+  const it = ITEMS[key], m = S.party[i], st = heroStats(m);
+  if (!S.items[key]) return;
+  if (it.revive) { if (m.hp > 0) return toast('쓰러진 동료에게만 쓸 수 있어요'); m.hp = Math.round(st.maxHp * it.revive); }
+  else {
+    if (m.hp <= 0) return toast('쓰러진 동료는 주먹밥으로 일으켜야 해요');
+    if (it.hp) { if (m.hp >= st.maxHp) return toast('HP가 가득해요'); m.hp = Math.min(st.maxHp, m.hp + it.hp); }
+    if (it.mp) { if (m.mp >= st.maxMp) return toast('기력이 가득해요'); m.mp = Math.min(st.maxMp, m.mp + it.mp); }
+  }
+  S.items[key]--;
+  toast(`${it.icon} ${HERO[m.id].name}에게 ${josa(it.name, '을를')} 사용했다!`);
+}
+
+function openMenu() {
+  openPanel('메뉴', [['party', '🐹 동료'], ['items', '🎒 아이템'], ['quest', '📜 의뢰'], ['sys', '⚙️ 설정']], tab => {
+    if (tab === 'party') return S.party.map(memberCard).join('');
+    if (tab === 'items') {
+      const own = Object.keys(ITEMS).filter(k => S.items[k] > 0);
+      if (!own.length) return '<div class="box">가진 아이템이 없어요. 도구점에서 살 수 있어요.</div>';
+      return own.map(k => `<div class="card"><div class="ico">${ITEMS[k].icon}</div><div class="main">
+        <b>${ITEMS[k].name}</b> <span class="muted">×${S.items[k]}</span><div class="muted">${ITEMS[k].desc}</div>
+        <div class="use-row">${S.party.map((m, i) => `<button class="btn" data-a="use" data-k="${k}" data-i="${i}">${HERO[m.id].name}</button>`).join('')}</div>
+      </div></div>`).join('');
+    }
+    if (tab === 'quest') {
+      const qs = ['풀뽑기 의뢰', '풀숲의 키메라 토벌', '숲의 주인 토벌', '토벌 자격 시험'];
+      return `<div class="box"><h3>지금 할 일</h3>${objective()}</div>
+        <div class="box"><h3>이야기 진행</h3><ul class="quest-list">${qs.map((q, i) =>
+          `<li class="${S.quest > i + 1 ? 'done' : S.quest === i + 1 ? 'now' : ''}">${S.quest > i + 1 ? '✅' : S.quest === i + 1 ? '▶' : '·'} ${q}</li>`).join('')}</ul></div>
+        <div class="box muted">보수 ${fmt(S.coins)}💰 · 걸음 수 ${fmt(S.steps)} · 플레이 ${Math.floor(S.playTime / 60)}분</div>`;
+    }
+    return `<div class="box"><h3>저장</h3><p class="muted">맵을 옮기거나 전투가 끝나면 자동 저장돼요. 치이카와네 집에서 쉬어도 저장돼요.</p>
+      <div class="row"><button class="btn blue" data-a="save">지금 저장</button><button class="btn white" data-a="title">타이틀로</button></div></div>
+      <div class="box"><h3>조작법</h3><p class="muted">이동: 방향키·WASD 또는 화면 왼쪽 아래 버튼<br>조사·대화: Space·Enter 또는 「조사」 버튼<br>메뉴: Esc</p></div>
+      <div class="box"><p class="muted">비영리 팬메이드 게임 · 원작: 나가노 「먼가 작고 귀여운 녀석」</p></div>`;
+  }, d => {
+    if (d.a === 'use') { useItemField(d.k, +d.i); redrawPanel(); }
+    else if (d.a === 'save') { save(); toast('저장했어요!'); }
+    else if (d.a === 'title') { save(); location.reload(); }
+  });
+}
+
+function openShop() {
+  openPanel('도구점', [['items', '🎒 도구'], ['equip', '🗡️ 장비 강화']], tab => {
+    let h = `<div class="box">보유 보수: <b>${fmt(S.coins)}💰</b></div>`;
+    if (tab === 'items') {
+      h += Object.entries(ITEMS).map(([k, it]) => `<div class="card"><div class="ico">${it.icon}</div>
+        <div class="main"><b>${it.name}</b> <span class="muted">보유 ${S.items[k]}</span><div class="muted">${it.desc}</div></div>
+        <button class="btn yellow" data-a="buy" data-k="${k}" ${S.coins < it.price ? 'disabled' : ''}>사기<small>💰 ${it.price}</small></button></div>`).join('');
+    } else {
+      h += S.party.map((m, i) => {
+        const wc = wpnCost(m.wpn), cc = charmCost(m.charm);
+        return `<div class="card"><div class="ico"><img src="img/${m.id}.png" alt=""></div>
+          <div class="main"><b>${HERO[m.id].name}</b>
+            <div class="muted">무기 +${m.wpn} (공격 +${m.wpn * 3}) · 부적 +${m.charm} (방어 +${m.charm * 2})</div>
+            <div class="use-row">
+              <button class="btn pink" data-a="wpn" data-i="${i}" ${m.wpn >= EQUIP_MAX || S.coins < wc ? 'disabled' : ''}>무기 강화 ${m.wpn >= EQUIP_MAX ? 'MAX' : wc + '💰'}</button>
+              <button class="btn blue" data-a="charm" data-i="${i}" ${m.charm >= EQUIP_MAX || S.coins < cc ? 'disabled' : ''}>부적 강화 ${m.charm >= EQUIP_MAX ? 'MAX' : cc + '💰'}</button>
+            </div></div></div>`;
+      }).join('');
+      h += '<p class="muted" style="text-align:center">갑옷씨가 하나하나 정성껏 손봐 준대요</p>';
+    }
+    return h;
+  }, d => {
+    if (d.a === 'buy') { const it = ITEMS[d.k]; if (S.coins >= it.price) { S.coins -= it.price; S.items[d.k]++; toast(`${it.icon} ${josa(it.name, '을를')} 샀다!`); } }
+    else if (d.a === 'wpn') { const m = S.party[+d.i], c = wpnCost(m.wpn); if (S.coins >= c && m.wpn < EQUIP_MAX) { S.coins -= c; m.wpn++; toast('🗡️ 무기가 튼튼해졌다!'); } }
+    else if (d.a === 'charm') { const m = S.party[+d.i], c = charmCost(m.charm); if (S.coins >= c && m.charm < EQUIP_MAX) { S.coins -= c; m.charm++; toast('🧿 부적이 반짝인다!'); } }
+    redrawPanel();
+  });
+}
+
+function openRamen() {
+  openPanel('라멘 가게', null, () => `
+    <div class="box" style="text-align:center">
+      <div style="font-size:54px">🍜</div>
+      <p>김이 모락모락 나는 라멘. 다 먹으면 모두의<br><b>HP와 기력이 완전히 회복</b>돼요.</p>
+      <p class="muted">보유 보수: ${fmt(S.coins)}💰</p>
+      <div class="row"><button class="btn yellow" data-a="eat" ${S.coins < RAMEN_PRICE ? 'disabled' : ''}>라멘 먹기 (💰 ${RAMEN_PRICE})</button></div>
+    </div>
+    <div class="card"><div class="ico"><img src="${IMG.kuri.src}" alt=""></div><div class="main"><b>쿠리만쥬</b><div class="muted">"여기 라멘은 국물이 진짜라고. 프하ー!"</div></div></div>`,
+  d => {
+    if (d.a === 'eat' && S.coins >= RAMEN_PRICE) {
+      S.coins -= RAMEN_PRICE;
+      healAll();
+      for (const m of S.party) if (m.hp <= 0) m.hp = heroStats(m).maxHp;
+      toast('🍜 후루룩… 맛있다~! 모두 회복했다!');
+      redrawPanel();
+    }
+  });
+}
+
+/* ---------- 입력 ---------- */
+const KEYDIR = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right' };
+function press(dir) { if (!held.includes(dir)) held.push(dir); }
+function release(dir) { const i = held.indexOf(dir); if (i >= 0) held.splice(i, 1); }
+function actionKey() {
+  if (mode === 'dialog') nextLine();
+  else if (mode === 'map' && !rt.moving) interact();
+}
+window.addEventListener('keydown', e => {
+  if (KEYDIR[e.key]) { if (mode === 'map') press(KEYDIR[e.key]); e.preventDefault(); return; }
+  if (e.repeat) return;
+  if (e.key === ' ' || e.key === 'Enter' || e.key === 'z' || e.key === 'Z') { e.preventDefault(); actionKey(); }
+  else if (e.key === 'Escape' || e.key === 'x' || e.key === 'X' || e.key === 'm' || e.key === 'M') {
+    if (mode === 'panel') closePanel();
+    else if (mode === 'map') openMenu();
+  }
+});
+window.addEventListener('keyup', e => { if (KEYDIR[e.key]) release(KEYDIR[e.key]); });
+window.addEventListener('blur', () => { held.length = 0; });
+
+document.querySelectorAll('#pad button').forEach(b => {
+  const d = b.dataset.d;
+  b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture(e.pointerId); b.classList.add('on'); if (mode === 'map') press(d); });
+  const up = () => { b.classList.remove('on'); release(d); };
+  b.addEventListener('pointerup', up);
+  b.addEventListener('pointercancel', up);
+});
+const btnA = $('#btn-a');
+btnA.addEventListener('pointerdown', e => { e.preventDefault(); btnA.classList.add('on'); actionKey(); });
+btnA.addEventListener('pointerup', () => btnA.classList.remove('on'));
+btnA.addEventListener('pointercancel', () => btnA.classList.remove('on'));
+$('#dialog').addEventListener('pointerdown', e => { e.preventDefault(); if (mode === 'dialog') nextLine(); });
+$('#hud-menu').addEventListener('click', () => { if (mode === 'map') openMenu(); });
+
+document.addEventListener('visibilitychange', () => { if (document.hidden && S && mode !== 'title') save(); });
 
 /* ---------- 시작 ---------- */
-buildParty();
-setArea(true);
-spawnMonster();
-renderPanel();
-if (S.stats.taps >= 15) el.tapHint.hidden = true;
-
-const away = (Date.now() - (S.lastTime || Date.now())) / 1000;
-if (!S.seenIntro) {
-  S.seenIntro = true;
-  showModal(`<div class="faces">${chiikawaSVG()}${hachiwareSVG()}${usagiSVG()}</div>
-    <h2>먼작귀 방치 토벌대</h2>
-    <p>작고 귀여운 녀석들이 사는 세계.<br>풀뽑기로 <b>보수</b>를 벌고, 숲의 <b>키메라</b>를 토벌하자!</p>
-    <p class="muted">🐹 동료를 모으고 레벨업 · 🌿 노동으로 방치 수입<br>🍜 맛있는 걸 먹고 버프 · 📜 자격 시험으로 영구 강화</p>`,
-  [{ label: '토벌하러 가자!', cls: '' }]);
-} else if (away > 3) {
-  applyOffline(away, true);
+async function startGame(fresh) {
+  S = fresh ? freshState() : (load() || freshState());
+  $('#title').hidden = true;
+  enterMap(S.map, S.x, S.y, S.dir);
+  mode = 'map';
+  if (fresh) {
+    save();
+    await talk([
+      ['n', '여기는 먼가 작고 귀여운 녀석들이 사는 세계.'],
+      ['n', '모두 노동 게시판에서 일을 받고, 보수로 맛있는 걸 사 먹으며 살아간다.'],
+      ['hachiware', '치이카와~! 좋은 아침!'],
+      ['chiikawa', '…!! (꾸벅)'],
+      ['hachiware', '노동 게시판에 새 일이 올라왔대! 같이 보러 가자!'],
+      ['chiikawa', '와…!'],
+      ['n', '노동 게시판은 집 오른쪽에 있다. 앞에 서서 「조사」를 눌러 보자.'],
+    ]);
+  }
 }
-requestAnimationFrame(loop);
+$('#t-new').addEventListener('click', () => {
+  if (hasSave() && !confirm('저장된 데이터가 있어요. 처음부터 시작할까요?')) return;
+  startGame(true);
+});
+$('#t-cont').addEventListener('click', () => startGame(false));
+$('#t-cont').hidden = !hasSave();
+
+resize();
+document.fonts && document.fonts.ready.then(() => { for (const k in MAPS) MAPS[k].canvas = null; if (map) prerender(map); });
+requestAnimationFrame(frame);

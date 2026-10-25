@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#fff7ea">
-<title>먼작귀 방치 토벌대</title>
+<title>먼작귀 RPG</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&display=swap" rel="stylesheet">
@@ -12,52 +12,65 @@
 </head>
 <body>
 <div id="app">
-  <header id="hud">
-    <div class="hud-item"><span class="hud-ico">💰</span><b id="coins">0</b></div>
-    <div class="hud-item"><span class="hud-ico">⚔️</span><b id="dps">0</b><small>/초</small></div>
-    <div class="hud-item"><span class="hud-ico">🌿</span><b id="income">0</b><small>/초</small></div>
-    <div class="hud-item rank" id="rank">무자격</div>
-  </header>
+  <canvas id="map"></canvas>
 
-  <section id="field">
-    <div id="deco"></div>
-    <div id="stage-box">
-      <div id="stage-name"></div>
-      <div id="stage-progress"></div>
-    </div>
-    <div id="boss-bar" hidden><div id="boss-fill"></div><span id="boss-time"></span></div>
-    <button id="advance-btn" hidden>▶ 보스 재도전!</button>
-    <div id="buff-icons"></div>
-    <div id="party"></div>
-    <div id="enemy">
-      <div id="enemy-name"></div>
-      <div class="hpbar"><div id="hp-fill"></div><span id="hp-text"></span></div>
-      <div id="monster"></div>
-    </div>
-    <div id="floats"></div>
-    <div id="skills"></div>
-    <div id="toast"></div>
-    <div id="tap-hint">화면을 톡톡! 눌러서 같이 싸우자</div>
-  </section>
-
-  <nav id="tabs">
-    <button data-tab="heroes" class="on">🐹<span>동료</span></button>
-    <button data-tab="jobs">🌿<span>노동</span></button>
-    <button data-tab="food">🍜<span>먹거리</span></button>
-    <button data-tab="exam">📜<span>자격시험</span></button>
-    <button data-tab="info">📖<span>정보</span></button>
-  </nav>
-
-  <section id="panel"></section>
-</div>
-
-<div id="modal" hidden>
-  <div class="modal-card">
-    <div id="modal-body"></div>
-    <div id="modal-btns"></div>
+  <div id="hud">
+    <div id="hud-area"></div>
+    <div id="hud-coins">💰 <b>0</b></div>
+    <button id="hud-menu">☰ 메뉴</button>
   </div>
-</div>
+  <div id="objective"></div>
 
+  <div id="pad">
+    <button data-d="up" style="grid-area:u">▲</button>
+    <button data-d="left" style="grid-area:l">◀</button>
+    <button data-d="right" style="grid-area:r">▶</button>
+    <button data-d="down" style="grid-area:d">▼</button>
+  </div>
+  <button id="btn-a">조사</button>
+
+  <div id="dialog" hidden>
+    <div id="dlg-face"></div>
+    <div id="dlg-main"><div id="dlg-name"></div><div id="dlg-text"></div></div>
+    <span id="dlg-next">▼</span>
+  </div>
+
+  <div id="battle" hidden>
+    <div id="b-field">
+      <div id="b-enemies"></div>
+    </div>
+    <div id="b-msg"></div>
+    <div id="b-party"></div>
+    <div id="b-cmd"></div>
+    <div id="b-floats"></div>
+  </div>
+
+  <div id="panel" hidden>
+    <div class="panel-card">
+      <div class="panel-top"><h2 id="panel-title"></h2><button id="panel-close">✕</button></div>
+      <div id="panel-tabs"></div>
+      <div id="panel-body"></div>
+    </div>
+  </div>
+
+  <div id="title">
+    <div class="t-heroes">
+      <img src="img/hachiware.png" alt="하치와레">
+      <img src="img/chiikawa.png" alt="치이카와">
+      <img src="img/usagi.png" alt="우사기">
+    </div>
+    <h1>먼작귀 RPG</h1>
+    <p class="t-sub">~ 토벌 자격 시험 대작전 ~</p>
+    <div class="t-btns">
+      <button class="btn" id="t-new">처음부터</button>
+      <button class="btn blue" id="t-cont" hidden>이어하기</button>
+    </div>
+    <p class="t-note">이동: 방향키 / WASD · 조사·대화: Space / Enter · 메뉴: Esc</p>
+  </div>
+
+  <div id="fade"></div>
+  <div id="toast"></div>
+</div>
 <script src="game.js"></script>
 </body>
 </html>
