@@ -151,17 +151,18 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   background: #fff; border-bottom: 3px solid var(--ink);
   padding: 8px 12px; font-size: 15.5px; min-height: 42px; line-height: 1.4;
 }
-#b-party { display: flex; gap: 6px; padding: 8px; background: var(--bg); }
+#b-party { display: flex; gap: 5px; padding: 8px 6px; background: var(--bg); }
 .pc {
   flex: 1; min-width: 0; background: #fff; border: 2.5px solid var(--ink); border-radius: 14px;
   padding: 5px 6px 6px; display: flex; flex-direction: column; align-items: center;
   transition: transform .15s, background .15s;
 }
-.pc img { height: 52px; object-fit: contain; }
+.pc img { height: 48px; max-width: 100%; object-fit: contain; }
 .pc .pc-name { font-size: 13px; }
 .pc .pc-name small { color: var(--blue-deep); }
 .pc .bar { width: 100%; margin-top: 2px; height: 8px; }
-.pc .pc-num { font-size: 11px; color: var(--ink-soft); width: 100%; display: flex; justify-content: space-between; }
+.pc .pc-num { font-size: 10.5px; color: var(--ink-soft); width: 100%; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 4px; }
+.pc .pc-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .pc.active { background: var(--yellow); transform: translateY(-6px); }
 .pc.ko { filter: grayscale(1); opacity: .6; }
 .pc.ko img { transform: rotate(90deg) scale(.8); }
