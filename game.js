@@ -189,10 +189,52 @@ const DEX = [
   ['풀숲', ['kimera', 'bee', 'spiky']], ['깊은 숲', ['anoko', 'mush', 'shadow', 'boss1']],
   ['동굴', ['elephant', 'bat', 'rock', 'boss2']], ['바닷가', ['puffer', 'sunfish', 'mermaid', 'siren']],
   ['유적', ['snake', 'rabbit', 'crier', 'sphinx']],
+  ['마녀의 숲', ['goblin', 'kendama', 'nightmask', 'witch', 'deka2']],
 ];
 const wpnCost = lv => Math.round(40 * Math.pow(1.9, lv));
 const charmCost = lv => Math.round(35 * Math.pow(1.9, lv));
-const EQUIP_MAX = 8;
+const EQUIP_MAX = 12;
+const DECOR = [
+  { id: 'flower', name: '해바라기 화분', icon: '🌻', price: 150, x: 2, y: 5 },
+  { id: 'plant', name: '관엽 식물', icon: '🪴', price: 300, x: 5, y: 5 },
+  { id: 'post', name: '우체통', icon: '📮', price: 600, x: 6, y: 4 },
+  { id: 'flag', name: '잉어 깃발', icon: '🎏', price: 1000, x: 1, y: 3 },
+  { id: 'bench', name: '나무 벤치', icon: '🪑', price: 1800, x: 2, y: 6 },
+  { id: 'lantern', name: '종이 등롱', icon: '🏮', price: 3000, x: 6, y: 2 },
+  { id: 'tent', name: '캠핑 텐트', icon: '⛺', price: 5000, x: 6, y: 6 },
+  { id: 'fountain', name: '작은 분수', icon: '⛲', price: 9000, x: 3, y: 7 },
+];
+const cozyMult = () => 1 + .03 * DECOR.filter(d => S.decor[d.id]).length;
+const TRAVEL = {
+  town: ['마을', 12, 9], field: ['풀숲', 1, 10], forest: ['깊은 숲', 1, 12], cave: ['어두운 동굴', 1, 17],
+  beach: ['바닷가', 12, 1], ruins: ['수수께끼의 유적', 1, 10], witch: ['마녀의 숲', 14, 1],
+};
+const dexCount = () => Object.keys(S.dex).filter(id => DEX.some(([, ids]) => ids.includes(id))).length;
+const dexTotal = () => DEX.reduce((a, [, ids]) => a + ids.length, 0);
+const killTotal = () => Object.values(S.dex).reduce((a, n) => a + n, 0);
+const maxLv = () => Math.max(...S.party.map(m => m.lv));
+const ACH = [
+  { id: 'kill1', name: '첫 토벌', desc: '몬스터를 1마리 토벌', goal: 1, now: killTotal, coin: 50 },
+  { id: 'kill100', name: '토벌 베테랑', desc: '몬스터를 100마리 토벌', goal: 100, now: killTotal, coin: 1000 },
+  { id: 'kill500', name: '토벌의 달인', desc: '몬스터를 500마리 토벌', goal: 500, now: killTotal, coin: 5000 },
+  { id: 'weed30', name: '풀뽑기 장인', desc: '풀을 30개 뽑기', goal: 30, now: () => S.weedTotal, coin: 300 },
+  { id: 'fish10', name: '낚시 입문', desc: '낚시로 10번 낚기', goal: 10, now: () => S.fished, coin: 300 },
+  { id: 'fish50', name: '바다의 친구', desc: '낚시로 50번 낚기', goal: 50, now: () => S.fished, coin: 1500, item: ['tai', 3] },
+  { id: 'dexHalf', name: '도감 절반', desc: '도감의 절반을 채우기', goal: 12, now: dexCount, coin: 1000 },
+  { id: 'dexAll', name: '도감 완성', desc: '도감을 모두 채우기', goal: 24, now: dexCount, coin: 8000, item: ['onigiri', 5] },
+  { id: 'friends', name: '모두 친구', desc: '동료 10명을 모두 모으기', goal: 10, now: () => S.party.length, coin: 3000 },
+  { id: 'lv20', name: '든든한 토벌자', desc: '동료 한 명이 Lv.20 달성', goal: 20, now: maxLv, coin: 1000 },
+  { id: 'lv40', name: '전설의 토벌자', desc: '동료 한 명이 Lv.40 달성', goal: 40, now: maxLv, coin: 6000 },
+  { id: 'wpn', name: '최강 무기', desc: '무기를 한 번 MAX까지 강화', goal: EQUIP_MAX, now: () => Math.max(...S.party.map(m => m.wpn)), coin: 3000 },
+  { id: 'decor4', name: '아늑한 집', desc: '가구를 4개 들여놓기', goal: 4, now: () => Object.keys(S.decor).length, coin: 1000 },
+  { id: 'decorAll', name: '꿈의 집', desc: '가구를 모두 들여놓기', goal: 8, now: () => Object.keys(S.decor).length, coin: 6000 },
+  { id: 'rank1', name: '토벌 1급', desc: '토벌 1급 시험에 합격', goal: 1, now: () => S.quest >= 11 ? 1 : 0, coin: 10000 },
+];
+function checkAch() {
+  const fresh = ACH.filter(a => !S.achSeen[a.id] && a.now() >= a.goal);
+  fresh.forEach(a => S.achSeen[a.id] = true);
+  if (fresh.length) setTimeout(() => toast(`🏆 업적 달성: ${fresh[0].name}${fresh.length > 1 ? ` 외 ${fresh.length - 1}개` : ''}<br><small>메뉴 → 업적에서 보상 받기</small>`), 300);
+}
 
 const EN = {
   kimera: { n: '작은 키메라', img: 'mon_pink', hp: 18, atk: 7, def: 2, spd: 5, exp: 6, coin: 5 },
@@ -214,13 +256,20 @@ const EN = {
   rabbit: { n: '의태 토끼', img: 'mon_rabbit', hp: 240, atk: 56, def: 20, spd: 20, exp: 130, coin: 75 },
   crier: { n: '울보 섬주민', img: 'mon_crier', hp: 280, atk: 52, def: 24, spd: 12, exp: 125, coin: 72 },
   sphinx: { n: '스핑크스', img: 'mon_sphinx', hp: 4500, atk: 58, def: 26, spd: 16, exp: 2000, coin: 2500, boss: true, aoe: '수수께끼 광선', twice: true },
+  goblin: { n: '고블린 형제', img: 'mon_goblin', hp: 380, atk: 66, def: 30, spd: 14, exp: 180, coin: 95 },
+  kendama: { n: '켄다마 유령', img: 'mon_kendama', hp: 320, atk: 72, def: 26, spd: 22, exp: 190, coin: 100 },
+  nightmask: { n: '밤의 가면 키메라', img: 'mon_mask', filter: 'hue-rotate(210deg) brightness(.85)', hp: 350, atk: 70, def: 28, spd: 18, exp: 185, coin: 98 },
+  witch: { n: '숲의 마녀', img: 'mon_witch', filter: 'drop-shadow(0 0 2px #fff) drop-shadow(0 0 10px #c9a8ff)', hp: 7000, atk: 74, def: 32, spd: 18, exp: 4000, coin: 5000, boss: true, aoe: '저주의 주문', twice: true },
+  deka2: { n: '진짜 크고 강한 녀석', img: 'mon_deka2', hp: 12000, atk: 88, def: 38, spd: 20, exp: 8000, coin: 10000, boss: true, aoe: '대지 가르기', twice: true },
   rakko: { n: '랏코', img: 'npc_rakko', hp: 1400, atk: 36, def: 15, spd: 16, exp: 300, coin: 0, boss: true, aoe: '랭커의 일격' },
 };
 loadImg('boss1', 'img/mon_pond.png');
 loadImg('boss2', 'img/mon_deka.png');
 loadImg('siren', 'img/mon_siren.png');
 loadImg('sphinx', 'img/mon_sphinx.png');
-const enemyArt = d => `<img src="img/${d.img}.png" alt="">`;
+loadImg('witch', 'img/mon_witch.png');
+loadImg('deka2', 'img/mon_deka2.png');
+const enemyArt = d => `<img src="img/${d.img}.png" alt=""${d.filter ? ` style="filter:${d.filter}"` : ''}>`;
 
 /* ---------- 맵 ---------- */
 const T = 40;
@@ -229,6 +278,7 @@ const THEME = {
   field: { grass: '#c2e8a2', dark: '#9fd283', path: '#f0dfb4', crown: '#7cc46c', crown2: '#a7dc96', bg: '#7fb86c', sky: ['#bfe6ff', '#eef9ff'], ground: '#a3d983' },
   forest: { grass: '#a8d692', dark: '#86c070', path: '#e6d6a8', crown: '#5fae68', crown2: '#86c98a', bg: '#4f8a55', sky: ['#a9dcc2', '#e3f6ea'], ground: '#73ad63' },
   beach: { grass: '#f6e7bb', dark: '#dcc68c', path: '#fff4da', crown: '#7cc46c', crown2: '#a7dc96', bg: '#8fd3f0', sky: ['#9fd6f4', '#ecf9ff'], ground: '#f2dfa8' },
+  night: { grass: '#5d7d6b', dark: '#466352', path: '#8f8aa8', crown: '#3d6a54', crown2: '#5f9073', bg: '#25303a', sky: ['#2e4069', '#51628f'], ground: '#3e5d4c' },
   ruins: { grass: '#ead5a6', dark: '#c9ad78', path: '#f7e8c8', crown: '#9cbf6a', crown2: '#c4dc96', bg: '#b8945e', sky: ['#f2d8a6', '#fff3dc'], ground: '#cfab70' },
   cave: { floor: '#aaa2b9', dark: '#958da6', wall: '#5f5872', wallTop: '#7d7592', bg: '#3d3849', sky: ['#5c5672', '#8e87a6'], ground: '#6e667b' },
 };
@@ -382,7 +432,7 @@ function buildMaps() {
   { // 수수께끼의 유적
     const w = 30, h = 22, g = grid(w, h, '.'), r = mulberry(55);
     border(g, 'p');
-    hl(g, 0, 14, 10, '='); vl(g, 14, 3, 17, '='); hl(g, 14, 24, 3, '='); hl(g, 5, 25, 17, '='); vl(g, 5, 10, 17, '=');
+    hl(g, 0, 14, 10, '='); vl(g, 14, 3, 17, '='); hl(g, 14, 24, 3, '='); hl(g, 5, 25, 17, '='); vl(g, 5, 10, 21, '=');
     blobs(g, r, ',', 18, 2.6, '.');
     scatter(g, r, 'p', .08, (x, y) => (g[y][x] === '.' || g[y][x] === ',') && !nearPath(g, x, y));
     scatter(g, r, 'r', .03, (x, y) => g[y][x] === '.' && !nearPath(g, x, y));
@@ -392,9 +442,32 @@ function buildMaps() {
       enc: { rate: .12, on: ',', list: ['snake', 'rabbit', 'crier'], max: 3 },
       npcs: [{ id: 'pochette', x: 15, y: 11, img: 'pochette' }],
       boss: { id: 'sphinx', x: 26, y: 3, flag: 'sphinx', need: 7, img: 'sphinx' },
-      exits: [{ x: 0, y: 10, to: 'beach', tx: 28, ty: 4, label: '◀ 바닷가' }],
+      exits: [
+        { x: 0, y: 10, to: 'beach', tx: 28, ty: 4, label: '◀ 바닷가' },
+        { x: 5, y: 21, to: 'witch', tx: 14, ty: 1, label: '▼ 마녀의 숲', need: 9, gate: '이 아래는 어두운 「마녀의 숲」… 게시판의 특별 의뢰를 받고 나서 가자.' },
+      ],
     };
   }
+  { // 마녀의 숲
+    const w = 30, h = 24, g = grid(w, h, '.'), r = mulberry(66);
+    border(g, 'T');
+    vl(g, 14, 0, 13, '='); hl(g, 4, 24, 8, '='); vl(g, 4, 8, 20, '='); vl(g, 24, 8, 20, '='); hl(g, 4, 26, 20, '=');
+    blobs(g, r, ',', 22, 2.8, '.');
+    scatter(g, r, 'T', .2, (x, y) => (g[y][x] === '.' || g[y][x] === ',') && !nearPath(g, x, y));
+    rect(g, 11, 12, 7, 5, '.'); rect(g, 25, 18, 4, 5, '.');
+    scatter(g, r, 'f', .03, (x, y) => g[y][x] === '.');
+    M.witch = {
+      id: 'witch', name: '마녀의 숲', theme: 'night', w, h, g,
+      enc: { rate: .12, on: ',', list: ['goblin', 'kendama', 'nightmask'], max: 3 },
+      npcs: [],
+      bosses: [
+        { id: 'witch', x: 14, y: 14, flag: 'witch', need: 9, img: 'witch' },
+        { id: 'deka2', x: 27, y: 20, flag: 'deka2', need: 10, img: 'deka2' },
+      ],
+      exits: [{ x: 14, y: 0, to: 'ruins', tx: 5, ty: 20, label: '▲ 유적' }],
+    };
+  }
+  for (const m of Object.values(M)) m.bosses = m.bosses || (m.boss ? [m.boss] : []);
   return M;
 }
 const MAPS = buildMaps();
@@ -410,8 +483,9 @@ function freshState() {
     items: { herb: 3, bigherb: 0, tea: 1, onigiri: 0, fish: 0, shrimp: 0, tai: 0 },
     fished: 0, fishTip: false,
     quest: 0, weeds: 0, kills: 0, repeat: false,
-    flags: { usagi: false, boss1: false, boss2: false, momonga: false, kuri: false, shisa: false, rakko: false, siren: false, sphinx: false, furuhon: false, pajama: false, pochette: false },
-    dex: {}, autoBattle: false,
+    flags: { usagi: false, boss1: false, boss2: false, momonga: false, kuri: false, shisa: false, rakko: false, siren: false, sphinx: false, witch: false, deka2: false, furuhon: false, pajama: false, pochette: false },
+    dex: {}, autoBattle: false, speed: 1, sound: true,
+    visited: { town: true }, decor: {}, ach: {}, achSeen: {}, weedTotal: 0,
     steps: 0, playTime: 0,
   };
 }
@@ -423,6 +497,7 @@ function load() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
     const d = JSON.parse(raw), f = freshState();
+    if (d.visited) d.visited = Object.assign({ town: true }, d.visited, { [d.map]: true });
     if (!d.active) d.active = d.party.slice(0, PARTY_MAX).map(m => m.id);
     return Object.assign(f, d, { flags: Object.assign(f.flags, d.flags), items: Object.assign(f.items, d.items) });
   } catch (e) { return null; }
@@ -577,7 +652,7 @@ function resetChain() {
   rt.chain = activeParty().map(() => ({ x: S.x, y: S.y }));
   rt.prev = rt.chain.map(p => ({ ...p }));
 }
-function bossAlive(m) { return m.boss && !S.flags[m.boss.flag]; }
+const bossAt = (x, y) => map.bosses.find(b => !S.flags[b.flag] && b.x === x && b.y === y);
 function buildingAt(x, y) { return (map.buildings || []).find(b => x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h); }
 function npcAt(x, y) { return map.npcs.find(n => n.x === x && n.y === y && npcVisible(n)); }
 function weedAt(x, y) { return (map.weeds || []).find(w => w.x === x && w.y === y && !rt.pulled.has(x + ',' + y)); }
@@ -586,7 +661,7 @@ function walkable(x, y) {
   if (x < 0 || y < 0 || x >= map.w || y >= map.h) return false;
   if (SOLID.has(map.g[y][x])) return false;
   if (buildingAt(x, y) || npcAt(x, y) || weedAt(x, y)) return false;
-  if (bossAlive(map) && map.boss.x === x && map.boss.y === y) return false;
+  if (bossAt(x, y)) return false;
   return true;
 }
 
@@ -594,6 +669,7 @@ function enterMap(id, x, y, dir) {
   map = MAPS[id];
   if (!map.canvas) prerender(map);
   S.map = id; S.x = x; S.y = y; if (dir) S.dir = dir;
+  S.visited[id] = true;
   rt.pulled = new Set();
   rt.moving = false;
   resetChain();
@@ -649,7 +725,8 @@ function interact() {
   const [dx, dy] = DIRS[S.dir], fx = S.x + dx, fy = S.y + dy;
   const n = npcAt(fx, fy);
   if (n) return EVENTS.npc[n.id]();
-  if (bossAlive(map) && map.boss.x === fx && map.boss.y === fy) return EVENTS.boss[map.boss.id]();
+  const bs = bossAt(fx, fy);
+  if (bs) return EVENTS.boss[bs.id]();
   const w = weedAt(fx, fy);
   if (w) return pullWeed(w);
   const b = buildingAt(fx, fy);
@@ -662,6 +739,8 @@ function pullWeed(w) {
   const coin = 3;
   S.coins += coin;
   if (S.quest === 1) S.weeds++;
+  S.weedTotal++;
+  sfx('coin');
   toast(`🌿 풀을 뽑았다! +${coin}💰` + (S.quest === 1 ? `<br><small>(${Math.min(S.weeds, 5)}/5)</small>` : ''));
   updateHud();
 }
@@ -704,13 +783,17 @@ function render() {
     ctx.fillStyle = '#fff3a0'; ctx.beginPath(); ctx.arc(X + sway, Y - 27, 3, 0, 7); ctx.fill(); ctx.stroke();
   }
 
+  if (map.id === 'town') {
+    ctx.font = `${Math.round(T * .72)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    for (const d of DECOR) if (S.decor[d.id]) ctx.fillText(d.icon, d.x * T + T / 2, d.y * T + T - 6);
+  }
   const sprites = [];
   for (const n of map.npcs) {
     if (!npcVisible(n)) continue;
     sprites.push({ y: n.y, draw: () => drawSprite(IMG[n.img], n.x * T + T / 2, n.y * T + T - 2, NPC_H[n.img] || T * 1.05, false, Math.abs(Math.sin(rt.time * 2 + n.x)) * 2) });
   }
-  if (bossAlive(map)) {
-    const b = map.boss;
+  for (const b of map.bosses) {
+    if (S.flags[b.flag]) continue;
     sprites.push({ y: b.y, draw: () => drawSprite(IMG[b.img], b.x * T + T / 2, b.y * T + T, T * 2, false, Math.abs(Math.sin(rt.time * 1.5)) * 3) });
   }
   activeParty().forEach((m, i) => {
@@ -725,7 +808,7 @@ function render() {
 
   if (mode === 'map' && !rt.moving) {
     const [dx, dy] = DIRS[S.dir], fx = S.x + dx, fy = S.y + dy;
-    const can = npcAt(fx, fy) || weedAt(fx, fy) || buildingAt(fx, fy) || (bossAlive(map) && map.boss.x === fx && map.boss.y === fy);
+    const can = npcAt(fx, fy) || weedAt(fx, fy) || buildingAt(fx, fy) || bossAt(fx, fy);
     if (can) {
       const bx = S.x * T + T / 2, by = S.y * T - 22 - Math.abs(Math.sin(rt.time * 4)) * 4;
       ctx.fillStyle = '#fff'; ctx.strokeStyle = INK; ctx.lineWidth = 2;
@@ -778,7 +861,10 @@ function objective() {
     case 5: return '📌 노동 게시판에서 특별 의뢰를 받자';
     case 6: return S.flags.siren ? '📌 노동 게시판에 보고하자' : '📌 특별 의뢰: 바닷가의 「세이렌」 토벌';
     case 7: return S.flags.sphinx ? '📌 노동 게시판에 보고하자' : '📌 특별 의뢰: 유적의 「스핑크스」 토벌';
-    default: return S.repeat ? (S.kills >= 10 ? '📌 노동 게시판에 보고하자' : `📌 오늘의 토벌 의뢰 (${S.kills}/10)`) : '⭐ 토벌 3급! 자유롭게 모험하자';
+    case 8: return '📌 노동 게시판에서 새 특별 의뢰를 받자';
+    case 9: return S.flags.witch ? '📌 노동 게시판에 보고하자' : '📌 특별 의뢰: 「마녀의 숲」의 마녀 토벌';
+    case 10: return S.flags.deka2 ? '📌 노동 게시판에 보고하자' : '📌 토벌 1급 시험: 「진짜 크고 강한 녀석」 토벌';
+    default: return S.repeat ? (S.kills >= 10 ? '📌 노동 게시판에 보고하자' : `📌 오늘의 토벌 의뢰 (${S.kills}/10)`) : '⭐ 토벌 1급! 업적을 모아 보자';
   }
 }
 
@@ -946,6 +1032,26 @@ const EVENTS = {
         updateHud(); save();
       }
     },
+    async witch() {
+      if (S.quest < 9) { await talk([['n', '검은 망토를 쓴 누군가가 냄비를 휘젓고 있다…']]); return; }
+      await talk([['n', '「히히히… 보수를 두고 가거라…!」'], ['chiikawa', '…!! 시, 싫어…!'], ['hachiware', '우리 보수는 우리가 지킨다!'], ['usagi', '우라!!']]);
+      const won = await startBattle(['witch', 'kendama'], { boss: true });
+      if (won) {
+        S.flags.witch = true;
+        await talk([['n', '마녀는 「흥, 기억해 두마!」 하고 연기처럼 사라졌다.'], ['hachiware', '이겼다! 게시판에 보고하자!']]);
+        updateHud(); save();
+      }
+    },
+    async deka2() {
+      if (S.quest < 10) { await talk([['n', '거대한 노란 털뭉치가 쿨쿨 자고 있다… 지금은 깨우지 말자.']]); return; }
+      await talk([['n', '땅이 울린다… 노란 털뭉치가 천천히 눈을 떴다.'], ['chiikawa', '흐, 흐에…'], ['rakko', '…온다.'], ['hachiware', '토벌 1급 시험…! 모두 힘을 모으자!']]);
+      const won = await startBattle(['deka2'], { boss: true });
+      if (won) {
+        S.flags.deka2 = true;
+        await talk([['chiikawa', '…해냈다…! 해냈어…!!'], ['usagi', '야하ー!!'], ['hachiware', '빨리 게시판으로 가자!']]);
+        updateHud(); save();
+      }
+    },
     async boss2() {
       await talk([['n', '동굴 깊은 곳에서 거대한 그림자가 일어섰다…'], ['chiikawa', '으… 크, 크다…'], ['usagi', '우라!!'], ['hachiware', '이게 자격 시험…! 어떻게든 될 거야!']]);
       const won = await startBattle(['boss2'], { boss: true });
@@ -957,13 +1063,7 @@ const EVENTS = {
     },
   },
   building: {
-    async home() {
-      await talk([['n', '치이카와네 집이다. 폭신한 이불이 있다.']]);
-      healAll();
-      save();
-      $('#fade').classList.add('on'); await sleep(500); $('#fade').classList.remove('on');
-      await talk([['chiikawa', '쿨… 쿨…'], ['n', '푹 쉬었다! HP와 기력이 모두 회복되었다.\n(진행 상황을 저장했다)']]);
-    },
+    async home() { openHome(); },
     async board() { await boardEvent(); },
     async shop() { await talk([['armor2', '어서 오세요~ 도구점이에요. 천천히 보세요.']]); openShop(); },
     async ramen() { await talk([S.flags.shisa ? ['master', '어서 오시게. 시사는 요즘 토벌 수행 중이라네.'] : ['shisa', '어서 오세요! 따끈한 라멘 있어요~!']]); openRamen(); },
@@ -1063,6 +1163,40 @@ async function boardEvent() {
       ['n', '~ 특별 의뢰 클리어! ~\n오늘의 토벌 의뢰는 계속 받을 수 있어요.'],
     ]);
     S.quest = 8; S.repeat = false;
+  } else if (q === 8) {
+    await talk([
+      ['armor', '토벌 3급 여러분, 큰일이에요…!'],
+      ['armor', '유적 아래 어두운 숲에 「마녀」가 나타나서, 숲에 들어간 사람들의 보수를 몽땅 가져간대요!'],
+      ['chiikawa', '보, 보수를…!!'],
+      ['usagi', '하아?!'],
+      ['armor', '유적 왼쪽 아래 길로 「마녀의 숲」에 갈 수 있어요. 마녀를 토벌해 주세요!'],
+    ]);
+    S.quest = 9; S.repeat = false;
+  } else if (q === 9) {
+    if (!S.flags.witch) { await talk([['armor', '마녀는 숲 한가운데 공터에 있대요. 한 번에 두 번씩 주문을 외운다니 조심하세요!']]); return; }
+    S.coins += 5000;
+    await talk([
+      ['armor', '마녀를 토벌하다니! 보수 5000💰, 그리고 「토벌 2급」이에요!'],
+      ['hachiware', '2급이야, 2급!'],
+      ['armor', '…사실 마지막 시험이 하나 남아 있어요. 「토벌 1급」 시험이요.'],
+      ['armor', '마녀의 숲 오른쪽 아래 깊은 곳에, 동굴의 녀석보다 훨씬 강한 「진짜 크고 강한 녀석」이 있대요.'],
+      ['rakko', '…그 녀석은 나도 고전했다. 준비를 단단히 해라.'],
+      ['chiikawa', '…!! (꿀꺽)'],
+    ]);
+    S.quest = 10;
+  } else if (q === 10) {
+    if (!S.flags.deka2) { await talk([['armor', '「진짜 크고 강한 녀석」은 마녀의 숲 오른쪽 아래에 있어요. 장비 강화와 회복 아이템을 꼭 챙기세요!']]); return; }
+    S.coins += 10000;
+    await talk([
+      ['armor', '…믿을 수가 없어요. 오늘부터 여러분은 「토벌 1급」이에요!!'],
+      ['chiikawa', '…!!! 와아아…!!'],
+      ['hachiware', '우리가 1급이라니… 꿈 아니지?'],
+      ['usagi', '우라라라라ー!! 야하ー!!'],
+      ['rakko', '훌륭하다. 이제 나와 같은 1급이군.'],
+      ['armor', '기념 보수 10000💰! 오늘은 다 같이 라멘 파티예요!'],
+      ['n', '~ 축하합니다! 토벌 1급 달성! ~\n앞으로도 오늘의 토벌 의뢰와 업적을 즐겨 주세요.'],
+    ]);
+    S.quest = 11; S.repeat = false;
   } else {
     if (!S.repeat) {
       await talk([['armor', '오늘의 토벌 의뢰예요. 어디서든 키메라를 10마리 토벌해 주세요.']]);
@@ -1171,9 +1305,10 @@ const unitEl = u => u.side === 'hero' ? heroEl(u) : enemyEl(u);
 
 async function say(text, ms = 650) {
   bEl.msg.textContent = text;
-  await sleep(ms);
+  await sleep(ms / (S.speed || 1));
 }
 function floatAt(u, text, cls) {
+  if (cls === 'heal') sfx('heal');
   const el = unitEl(u), r = el.getBoundingClientRect(), base = bEl.root.getBoundingClientRect();
   const d = document.createElement('div');
   d.className = 'float ' + (cls || '');
@@ -1185,6 +1320,32 @@ function floatAt(u, text, cls) {
 }
 function anim(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
 
+let AC = null;
+function sfx(kind) {
+  if (!S || !S.sound) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+    const notes = {
+      hit: [[220, .05, 'square', .06]], crit: [[330, .05, 'square', .08], [523, .08, 'square', .07]],
+      hurt: [[150, .08, 'sawtooth', .05]], heal: [[523, .07, 'sine', .1], [784, .1, 'sine', .1]],
+      coin: [[988, .05, 'square', .05], [1319, .08, 'square', .05]],
+      win: [[523, .1, 'triangle', .12], [659, .1, 'triangle', .12], [784, .1, 'triangle', .12], [1047, .25, 'triangle', .12]],
+      level: [[659, .08, 'square', .06], [784, .08, 'square', .06], [988, .08, 'square', .06], [1319, .2, 'square', .06]],
+      lose: [[392, .2, 'triangle', .1], [330, .2, 'triangle', .1], [262, .35, 'triangle', .1]],
+      menu: [[660, .04, 'sine', .06]],
+    }[kind] || [];
+    let t = AC.currentTime;
+    for (const [f, d, type, v] of notes) {
+      const o = AC.createOscillator(), g = AC.createGain();
+      o.type = type; o.frequency.value = f;
+      g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.001, t + d);
+      o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + d + .02);
+      t += d * .9;
+    }
+  } catch (e) { /* 소리를 못 내는 환경 */ }
+}
+
 function damage(att, tgt, mult) {
   let dmg = Math.max(1, atkOf(att) * mult - tgt.st.def * .5) * rand(.9, 1.1);
   const crit = Math.random() < critOf(att);
@@ -1195,6 +1356,7 @@ function damage(att, tgt, mult) {
   dmg = Math.max(1, Math.round(dmg));
   tgt.hp = Math.max(0, tgt.hp - dmg);
   floatAt(tgt, (crit ? '치명타! ' : '') + dmg, crit ? 'crit' : '');
+  sfx(tgt.side === 'hero' ? 'hurt' : crit ? 'crit' : 'hit');
   anim(unitEl(tgt), tgt.side === 'hero' ? 'hurt' : 'hit');
   refreshBattle();
   return { dmg, crit };
@@ -1213,7 +1375,7 @@ async function battleLoop() {
         const act = await chooseAction(u);
         if (act.type === 'flee') {
           await say('도망치려고 했다…', 500);
-          if (Math.random() < .6) { await say('무사히 도망쳤다!', 700); return 'flee'; }
+          if (Math.random() < .7) { await say('무사히 도망쳤다!', 700); return 'flee'; }
           await say('하지만 도망칠 수 없었다!', 700);
         } else await heroAct(u, act);
       } else await enemyAct(u);
@@ -1238,7 +1400,7 @@ function queueAuto(u) {
   clearTargets();
   bEl.msg.textContent = `${u.name}의 차례 (자동 전투 중)`;
   bEl.cmd.innerHTML = '<div class="hint">🤖 자동 전투 중… 오른쪽 위 버튼으로 끌 수 있어요</div>';
-  B.autoTimer = setTimeout(() => { if (B.cur === u) B.resolve(autoAction(u)); }, 300);
+  B.autoTimer = setTimeout(() => { if (B.cur === u) B.resolve(autoAction(u)); }, 300 / (S.speed || 1));
 }
 function autoAction(u) {
   const skills = HERO[u.id].skills.filter(s => u.m.lv >= s.lv && u.mp >= s.mp);
@@ -1261,7 +1423,14 @@ function refreshAutoBtn() {
   const b = $('#b-auto');
   b.textContent = S.autoBattle ? '🤖 자동 ON' : '🤖 자동 OFF';
   b.classList.toggle('on', S.autoBattle);
+  $('#b-speed').textContent = `⏩ ${S.speed}×`;
+  $('#b-speed').classList.toggle('on', S.speed > 1);
 }
+$('#b-speed').addEventListener('click', e => {
+  e.stopPropagation();
+  S.speed = S.speed >= 3 ? 1 : S.speed + 1;
+  refreshAutoBtn();
+});
 $('#b-auto').addEventListener('click', e => {
   e.stopPropagation();
   S.autoBattle = !S.autoBattle;
@@ -1473,11 +1642,12 @@ async function enemyAct(e) {
 
 async function endBattle(result) {
   if (result === 'win') {
-    const exp = B.enemies.reduce((a, e) => a + e.def.exp, 0);
-    const coin = B.enemies.reduce((a, e) => a + e.def.coin, 0);
+    const exp = Math.round(B.enemies.reduce((a, e) => a + e.def.exp, 0) * cozyMult());
+    const coin = Math.round(B.enemies.reduce((a, e) => a + e.def.coin, 0) * cozyMult());
+    sfx('win');
     S.coins += coin;
     for (const e of B.enemies) S.dex[e.id] = (S.dex[e.id] || 0) + 1;
-    if ((S.quest === 2 && map.id === 'field') || (S.quest >= 8 && S.repeat)) S.kills += B.enemies.length;
+    if ((S.quest === 2 && map.id === 'field') || (S.quest >= 11 && S.repeat)) S.kills += B.enemies.length;
     await say(`승리! 경험치 ${exp}, 보수 ${coin}💰를 얻었다!`, 1000);
     for (const m of S.party) {
       if (B.heroes.some(h => h.m === m)) continue;
@@ -1502,11 +1672,13 @@ async function endBattle(result) {
         refreshBattle();
         heroEl(h).querySelector('.pc-name small').textContent = 'Lv.' + m.lv;
         anim(heroEl(h), 'hop');
+        sfx('level');
         await say(`🎉 ${h.name}의 레벨이 ${m.lv}(으)로 올랐다!`, 900);
         for (const s of HERO[m.id].skills) if (s.lv === m.lv) await say(`✨ ${josa(h.name, '은는')} 「${s.name}」을(를) 배웠다!`, 1000);
       }
     }
   } else if (result === 'lose') {
+    sfx('lose');
     await say('눈앞이 캄캄해졌다…', 1200);
   }
   bEl.root.hidden = true;
@@ -1524,6 +1696,7 @@ async function endBattle(result) {
     mode = 'map';
   }
   updateHud();
+  checkAch();
   save();
 }
 
@@ -1577,13 +1750,29 @@ function useItemField(key, i) {
 }
 
 function openMenu() {
-  openPanel('메뉴', [['party', '🐹 동료'], ['items', '🎒 아이템'], ['dex', '📖 도감'], ['quest', '📜 의뢰'], ['sys', '⚙️ 설정']], tab => {
+  openPanel('메뉴', [['party', '🐹 동료'], ['items', '🎒 아이템'], ['dex', '📖 도감'], ['ach', '🏆 업적'], ['map', '🗺️ 지도'], ['quest', '📜 의뢰'], ['sys', '⚙️ 설정']], tab => {
+    if (tab === 'ach') {
+      const done = ACH.filter(a => S.ach[a.id]).length;
+      return `<div class="box">받은 업적 보상 <b>${done}</b> / ${ACH.length}</div>` + ACH.map(a => {
+        const v = Math.min(a.now(), a.goal), ok = v >= a.goal, got = S.ach[a.id];
+        const reward = `💰${fmt(a.coin)}${a.item ? ` · ${ITEMS[a.item[0]].icon}×${a.item[1]}` : ''}`;
+        return `<div class="card ${got ? 'got' : ''}"><div class="ico">${got ? '🏆' : ok ? '🎁' : '🔒'}</div>
+          <div class="main"><b>${a.name}</b> <span class="muted">${a.desc}</span>
+            <div class="bar exp"><i style="width:${v / a.goal * 100}%"></i></div><div class="muted">${v} / ${a.goal} · 보상 ${reward}</div></div>
+          ${got ? '' : `<button class="btn yellow" data-a="ach" data-id="${a.id}" ${ok ? '' : 'disabled'}>받기</button>`}</div>`;
+      }).join('');
+    }
+    if (tab === 'map') {
+      return `<div class="box">한 번 가 본 곳으로 바로 이동할 수 있어요.</div>` + Object.entries(TRAVEL).map(([id, [name]]) =>
+        `<div class="card"><div class="ico">${S.visited[id] ? '📍' : '❔'}</div><div class="main"><b>${S.visited[id] ? name : '???'}</b>${S.map === id ? ' <span class="muted">(지금 여기)</span>' : ''}</div>
+        ${S.visited[id] && S.map !== id ? `<button class="btn blue" data-a="travel" data-id="${id}">이동</button>` : ''}</div>`).join('');
+    }
     if (tab === 'dex') {
       const list = DEX.flatMap(([area, ids]) => ids.map(id => [area, id]));
       const found = list.filter(([, id]) => S.dex[id]).length;
       return `<div class="box">토벌한 몬스터 <b>${found}</b> / ${list.length}${found === list.length ? ' · 🏆 도감 완성!' : ''}</div><div class="dex">${list.map(([area, id]) => {
         const e = EN[id], n = S.dex[id];
-        return `<div class="dex-c ${n ? '' : 'unknown'} ${e.boss ? 'boss' : ''}"><img src="img/${e.img}.png" alt=""><b>${n ? e.n : '???'}</b><small>${area}${n ? ` · ${n}회` : ''}</small>${n ? `<small>HP ${e.hp} · 공격 ${e.atk}</small>` : ''}</div>`;
+        return `<div class="dex-c ${n ? '' : 'unknown'} ${e.boss ? 'boss' : ''}">${n ? enemyArt(e) : `<img src="img/${e.img}.png" alt="">`}<b>${n ? e.n : '???'}</b><small>${area}${n ? ` · ${n}회` : ''}</small>${n ? `<small>HP ${e.hp} · 공격 ${e.atk}</small>` : ''}</div>`;
       }).join('')}</div>`;
     }
     if (tab === 'party') {
@@ -1599,7 +1788,7 @@ function openMenu() {
       </div></div>`).join('');
     }
     if (tab === 'quest') {
-      const qs = [[1, '풀뽑기 의뢰'], [2, '풀숲의 키메라 토벌'], [3, '숲의 주인 토벌'], [4, '토벌 자격 시험'], [6, '특별 의뢰: 바닷가의 세이렌'], [7, '특별 의뢰: 유적의 스핑크스']];
+      const qs = [[1, '풀뽑기 의뢰'], [2, '풀숲의 키메라 토벌'], [3, '숲의 주인 토벌'], [4, '토벌 자격 시험'], [6, '특별 의뢰: 바닷가의 세이렌'], [7, '특별 의뢰: 유적의 스핑크스'], [9, '특별 의뢰: 마녀의 숲의 마녀'], [10, '토벌 1급 시험: 진짜 크고 강한 녀석']];
       return `<div class="box"><h3>지금 할 일</h3>${objective()}</div>
         <div class="box"><h3>이야기 진행</h3><ul class="quest-list">${qs.map(([n, q]) =>
           `<li class="${S.quest > n ? 'done' : S.quest === n ? 'now' : ''}">${S.quest > n ? '✅' : S.quest === n ? '▶' : '·'} ${q}</li>`).join('')}</ul></div>
@@ -1612,6 +1801,10 @@ function openMenu() {
     }
     return `<div class="box"><h3>저장</h3><p class="muted">맵을 옮기거나 전투가 끝나면 자동 저장돼요. 치이카와네 집에서 쉬어도 저장돼요.</p>
       <div class="row"><button class="btn blue" data-a="save">지금 저장</button><button class="btn white" data-a="title">타이틀로</button></div></div>
+      <div class="box"><h3>게임 설정</h3>
+        <div class="row"><button class="btn ${S.sound ? 'pink' : 'white'}" data-a="sound">🔊 효과음 ${S.sound ? 'ON' : 'OFF'}</button>
+        <button class="btn ${S.speed > 1 ? 'yellow' : 'white'}" data-a="speed">⏩ 전투 속도 ${S.speed}×</button></div>
+        <p class="muted">전투 속도와 자동 전투는 전투 화면 위쪽 버튼으로도 바꿀 수 있어요.</p></div>
       <div class="box"><h3>조작법</h3><p class="muted">이동: 방향키·WASD 또는 화면 왼쪽 아래 버튼<br>조사·대화: Space·Enter 또는 「조사」 버튼<br>메뉴: Esc</p></div>
       <div class="box"><p class="muted">비영리 팬메이드 게임 · 원작: 나가노 「먼가 작고 귀여운 녀석」</p></div>`;
   }, d => {
@@ -1623,7 +1816,51 @@ function openMenu() {
       resetChain(); save(); redrawPanel();
     }
     else if (d.a === 'save') { save(); toast('저장했어요!'); }
+    else if (d.a === 'sound') { S.sound = !S.sound; sfx('menu'); redrawPanel(); }
+    else if (d.a === 'speed') { S.speed = S.speed >= 3 ? 1 : S.speed + 1; redrawPanel(); }
+    else if (d.a === 'ach') {
+      const a = ACH.find(x => x.id === d.id);
+      if (a && !S.ach[a.id] && a.now() >= a.goal) {
+        S.ach[a.id] = true; S.coins += a.coin;
+        if (a.item) S.items[a.item[0]] += a.item[1];
+        sfx('level'); toast(`🏆 「${a.name}」 보상을 받았다!`); save(); redrawPanel();
+      }
+    }
+    else if (d.a === 'travel') {
+      const [, x, y] = TRAVEL[d.id];
+      closePanel();
+      changeMap({ to: d.id, tx: x, ty: y });
+    }
     else if (d.a === 'title') { save(); location.reload(); }
+  });
+}
+
+async function restAtHome() {
+  closePanel();
+  healAll();
+  save();
+  $('#fade').classList.add('on'); await sleep(500); $('#fade').classList.remove('on');
+  await talk([['chiikawa', '쿨… 쿨…'], ['n', '푹 쉬었다! HP와 기력이 모두 회복되었다.\n(진행 상황을 저장했다)']]);
+}
+function openHome() {
+  sfx('menu');
+  openPanel('치이카와네 집', [['rest', '🛏️ 쉬기'], ['decor', '🪴 꾸미기']], tab => {
+    const n = Object.keys(S.decor).length;
+    if (tab === 'rest') return `<div class="box" style="text-align:center">
+      <div style="font-size:50px">🛏️</div><p>폭신한 이불에서 푹 자면<br><b>모두의 HP와 기력이 회복</b>되고 저장돼요.</p>
+      <div class="row"><button class="btn blue" data-a="rest">푹 쉬기</button></div></div>
+      <div class="box">🏡 아늑함 Lv.${n} · 경험치·보수 <b>+${Math.round((cozyMult() - 1) * 100)}%</b><p class="muted">「꾸미기」에서 가구를 사면 집 앞마당에 놓이고 아늑함이 올라가요.</p></div>`;
+    return `<div class="box">보유 보수 <b>${fmt(S.coins)}💰</b> · 가구 하나당 경험치·보수 +3%</div>` + DECOR.map(d => `<div class="card">
+      <div class="ico">${d.icon}</div>
+      <div class="main"><b>${d.name}</b><div class="muted">${S.decor[d.id] ? '✅ 앞마당에 놓았어요' : '집 앞마당에 놓을 수 있어요'}</div></div>
+      ${S.decor[d.id] ? '' : `<button class="btn yellow" data-a="decor" data-id="${d.id}" ${S.coins < d.price ? 'disabled' : ''}>사기<small>💰 ${fmt(d.price)}</small></button>`}
+    </div>`).join('');
+  }, d => {
+    if (d.a === 'rest') restAtHome();
+    else if (d.a === 'decor') {
+      const it = DECOR.find(x => x.id === d.id);
+      if (S.coins >= it.price && !S.decor[it.id]) { S.coins -= it.price; S.decor[it.id] = true; sfx('coin'); toast(`${it.icon} ${josa(it.name, '을를')} 들여놓았다!`); checkAch(); save(); redrawPanel(); }
+    }
   });
 }
 
