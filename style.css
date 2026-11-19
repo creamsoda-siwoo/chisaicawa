@@ -326,3 +326,7 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 
 .btn.mini { min-width: 0; font-size: 12px; padding: 1px 8px; margin-left: 4px; box-shadow: none; }
 #save-code { width: 100%; font-family: monospace; font-size: 11px; border: 2px solid var(--ink); border-radius: 10px; padding: 6px; margin: 6px 0; resize: vertical; }
+
+.en-img img.shiny { animation: shine 1.4s ease-in-out infinite; }
+@keyframes shine { 50% { filter: hue-rotate(190deg) saturate(1.9) brightness(1.2) drop-shadow(0 0 12px #fff3a0); } }
+.dex-c.has-shiny { box-shadow: 0 0 0 2px #ffd34d inset; }

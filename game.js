@@ -287,6 +287,8 @@ const ACH = [
   { id: 'chest', name: '보물 사냥꾼', desc: '보물상자를 모두 열기', goal: 14, now: () => Object.keys(S.chests).length, coin: 5000 },
   { id: 'wave10', name: '랭킹전 도전자', desc: '랭킹전 10웨이브 돌파', goal: 10, now: () => S.bestWave, coin: 3000 },
   { id: 'wave25', name: '랭킹전 챔피언', desc: '랭킹전 25웨이브 돌파', goal: 25, now: () => S.bestWave, coin: 10000 },
+  { id: 'shiny1', name: '반짝반짝', desc: '반짝 몬스터를 처음 토벌', goal: 1, now: () => Object.values(S.shiny).reduce((a, n) => a + n, 0), coin: 1000 },
+  { id: 'shiny10', name: '반짝 수집가', desc: '반짝 몬스터를 10마리 토벌', goal: 10, now: () => Object.values(S.shiny).reduce((a, n) => a + n, 0), coin: 6000 },
   { id: 'rank1', name: '토벌 1급', desc: '토벌 1급 시험에 합격', goal: 1, now: () => S.quest >= 11 ? 1 : 0, coin: 10000 },
 ];
 function checkAch() {
@@ -328,7 +330,20 @@ loadImg('siren', 'img/mon_siren.png');
 loadImg('sphinx', 'img/mon_sphinx.png');
 loadImg('witch', 'img/mon_witch.png');
 loadImg('deka2', 'img/mon_deka2.png');
-const enemyArt = d => `<img src="img/${d.img}.png" alt=""${d.filter ? ` style="filter:${d.filter}"` : ''}>`;
+const DAY_LEN = 480;
+const OUTDOOR = new Set(['town', 'field', 'forest', 'beach', 'ruins', 'witch']);
+function dayPhase() {
+  const t = ((S ? S.playTime : 0) % DAY_LEN) / DAY_LEN;
+  return t < .45 ? 'day' : t < .55 ? 'dusk' : t < .95 ? 'night' : 'dawn';
+}
+const isNight = () => dayPhase() === 'night';
+const PHASE_ICON = { day: '☀️', dusk: '🌇', night: '🌙', dawn: '🌅' };
+const SHINY_FILTER = 'hue-rotate(150deg) saturate(1.6) brightness(1.08) drop-shadow(0 0 6px #ffe27a)';
+const enemyArtOf = e => enemyArt(e.def, e.shiny);
+const enemyArt = (d, shiny) => {
+  const f = shiny ? SHINY_FILTER : d.filter;
+  return `<img src="img/${d.img}.png" alt=""${f ? ` style="filter:${f}"` : ''}${shiny ? ' class="shiny"' : ''}>`;
+};
 
 /* ---------- 맵 ---------- */
 const T = 40;
@@ -577,7 +592,7 @@ function freshState() {
     flags: { usagi: false, boss1: false, boss2: false, momonga: false, kuri: false, shisa: false, rakko: false, siren: false, sphinx: false, witch: false, deka2: false, furuhon: false, pajama: false, pochette: false },
     dex: {}, autoBattle: false, speed: 1, sound: true,
     visited: { town: true }, decor: {}, ach: {}, achSeen: {}, weedTotal: 0, meal: null, cooked: 0, arenaWins: 0,
-    bond: {}, chests: {}, accs: {}, bestWave: 0, challRuns: 0, rq: null, rqDone: 0, lastLogin: '', streak: 0, gifts: 0,
+    bond: {}, chests: {}, accs: {}, shiny: {}, minimap: true, bgm: true, bestWave: 0, challRuns: 0, rq: null, rqDone: 0, lastLogin: '', streak: 0, gifts: 0,
     steps: 0, playTime: 0,
   };
 }
@@ -767,7 +782,8 @@ function enterMap(id, x, y, dir) {
   rt.moving = false;
   resetChain();
   rt.encSafe = 5;
-  $('#hud-area').textContent = map.name;
+  rt.phase = null;
+  updateAreaLabel();
   if (id === 'beach' && !S.fishTip) { S.fishTip = true; setTimeout(() => toast('🎣 바다 앞에서 「조사」하면 낚시를 할 수 있어요'), 400); }
   updateHud();
 }
@@ -937,6 +953,43 @@ function render() {
       ctx.fillText('!', bx, by);
     }
   }
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (OUTDOOR.has(map.id)) {
+    const ph = dayPhase(), a = { day: 0, dusk: .16, night: .34, dawn: .12 }[ph];
+    if (a) { ctx.fillStyle = ph === 'night' ? `rgba(25,30,80,${a})` : `rgba(255,120,60,${a})`; ctx.fillRect(0, 0, VW, VH); }
+  }
+  if (S.minimap) drawMinimap();
+}
+
+function minimapBase(m) {
+  if (m.mini) return m.mini;
+  const c = document.createElement('canvas'); c.width = m.w; c.height = m.h;
+  const g = c.getContext('2d'), th = THEME[m.theme];
+  for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+    const ch = m.g[y][x];
+    g.fillStyle = ch === '=' ? '#f6e7c1' : ch === '~' ? '#7cc4ee' : ch === 'T' ? '#3f7a45' : ch === '#' ? '#3d3849' : ch === 'p' || ch === 'r' ? '#8c7d66' : (th.floor || th.grass);
+    g.fillRect(x, y, 1, 1);
+  }
+  for (const b of m.buildings || []) { g.fillStyle = '#e98aa0'; g.fillRect(b.x, b.y, b.w, b.h); }
+  return (m.mini = c);
+}
+function drawMinimap() {
+  const sc = Math.max(2, Math.min(4, Math.floor(110 / Math.max(map.w, map.h))));
+  const w = map.w * sc, h = map.h * sc, x0 = VW - w - 10, y0 = 46;
+  ctx.globalAlpha = .9;
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = INK; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(x0 - 4, y0 - 4, w + 8, h + 8, 8); ctx.fill(); ctx.stroke();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(minimapBase(map), x0, y0, w, h);
+  ctx.imageSmoothingEnabled = true;
+  const dot = (tx, ty, col, r) => { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x0 + (tx + .5) * sc, y0 + (ty + .5) * sc, r, 0, 7); ctx.fill(); };
+  for (const e of map.exits) dot(e.x, e.y, '#ffffff', sc * .7);
+  for (const c of map.chests || []) if (!S.chests[c.key]) dot(c.x, c.y, '#ffd34d', sc * .8);
+  for (const n of map.npcs) if (npcVisible(n)) dot(n.x, n.y, '#4f8db8', sc * .7);
+  for (const b of map.bosses) if (!S.flags[b.flag]) dot(b.x, b.y, '#b02a2a', sc);
+  const blink = .6 + .4 * Math.abs(Math.sin(rt.time * 4));
+  ctx.globalAlpha = blink; dot(S.x, S.y, '#e8495f', sc * 1.1);
+  ctx.globalAlpha = 1;
 }
 
 /* ---------- 메인 루프 ---------- */
@@ -954,7 +1007,18 @@ function frame(now) {
     if (!rt.moving && mode === 'map' && held.length) tryMove(held[held.length - 1]);
   }
   if (map && mode !== 'title' && mode !== 'battle') render();
+  if (map && S && mode !== 'title') updateAreaLabel();
+  bgmTick();
   requestAnimationFrame(frame);
+}
+
+function updateAreaLabel() {
+  if (!map || !S) return;
+  const ph = OUTDOOR.has(map.id) ? dayPhase() : null;
+  if (ph === rt.phase && rt.areaName === map.name) return;
+  if (rt.phase && ph === 'night' && rt.phase !== 'night') toast('🌙 밤이 되었다…<br><small>몬스터가 주는 보상이 늘고, 반짝 몬스터가 잘 나타난다</small>');
+  rt.phase = ph; rt.areaName = map.name;
+  $('#hud-area').textContent = (ph ? PHASE_ICON[ph] + ' ' : '') + map.name;
 }
 
 /* ---------- HUD · 토스트 ---------- */
@@ -1479,6 +1543,12 @@ function startBattle(ids, opts = {}) {
       seen[id] = (seen[id] || 0) + 1;
       return makeEnemyUnit(id, i, counts[id] > 1 ? ' ' + 'ABC'[seen[id] - 1] : '');
     });
+    if (!opts.boss && !opts.spar) {
+      const chance = isNight() && OUTDOOR.has(map.id) ? .08 : .04;
+      for (const e of B.enemies) if (!e.def.boss && Math.random() < chance) {
+        e.shiny = true; e.hp = Math.round(e.hp * 1.5); e.st = { ...e.st, maxHp: e.hp }; e.name = '✨반짝 ' + e.name;
+      }
+    }
     B.spar = !!opts.spar;
     B.arena = !!opts.arena;
     B.chall = !!opts.chall;
@@ -1496,7 +1566,7 @@ function startBattle(ids, opts = {}) {
       <div class="en ${e.def.boss ? 'boss' : ''}" data-k="${e.key}"${e.def.w ? ` style="width:${30 * e.def.w}%;max-width:${140 * e.def.w}px"` : ''}>
         <div class="en-name">${e.name}</div>
         <div class="bar"><i></i></div>
-        <div class="en-img">${enemyArt(e.def)}</div>
+        <div class="en-img">${enemyArtOf(e)}</div>
       </div>`).join('');
     bEl.party.innerHTML = B.heroes.map((h, i) => `
       <div class="pc" data-i="${i}">
@@ -1512,7 +1582,7 @@ function startBattle(ids, opts = {}) {
     bEl.root.hidden = false;
     bEl.root.classList.remove('enter'); void bEl.root.offsetWidth; bEl.root.classList.add('enter');
     refreshBattle();
-    const names = [...new Set(B.enemies.map(e => e.def.n))].join(', ');
+    const names = [...new Set(B.enemies.map(e => (e.shiny ? '✨반짝 ' : '') + e.def.n))].join(', ');
     await say(B.boss ? `${josa(names, '이가')} 앞을 가로막았다!` : `${josa(names, '이가')} 나타났다!`, 900);
     if (S.meal && S.meal.left > 0) { const r = RECIPES.find(x => x.id === S.meal.id); await say(`${r.icon} ${r.name} 효과! ${r.desc} (남은 전투 ${S.meal.left}회)`, 800); }
     const result = await battleLoop();
@@ -1559,7 +1629,61 @@ function floatAt(u, text, cls) {
 }
 function anim(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
 
-let AC = null;
+var AC = null;
+// [음높이(MIDI, 0=쉼표), 길이(박)] 목록. 모두 이 게임용으로 새로 만든 멜로디
+const BGM = {
+  field: { bpm: 112, wave: 'triangle', vol: .035, bass: [48, 55, 53, 55],
+    mel: [[72, 1], [76, 1], [79, 2], [77, 1], [76, 1], [74, 2], [72, 1], [74, 1], [76, 1], [72, 1], [69, 2], [0, 2],
+      [71, 1], [74, 1], [77, 2], [76, 1], [74, 1], [72, 2], [74, 1], [76, 1], [74, 1], [71, 1], [72, 2], [0, 2]] },
+  night: { bpm: 84, wave: 'sine', vol: .04, bass: [45, 52, 50, 52],
+    mel: [[69, 2], [72, 1], [76, 1], [74, 2], [72, 2], [71, 1], [72, 1], [74, 2], [69, 2], [0, 2],
+      [67, 2], [71, 1], [74, 1], [72, 2], [71, 2], [69, 4], [0, 2]] },
+  battle: { bpm: 150, wave: 'square', vol: .022, bass: [45, 45, 48, 50],
+    mel: [[69, .5], [72, .5], [76, .5], [72, .5], [74, .5], [77, .5], [81, 1], [79, .5], [77, .5], [76, .5], [74, .5], [72, 1], [0, 1],
+      [69, .5], [72, .5], [76, .5], [79, .5], [77, .5], [76, .5], [74, 1], [72, .5], [74, .5], [71, .5], [68, .5], [69, 2]] },
+  boss: { bpm: 132, wave: 'sawtooth', vol: .016, bass: [40, 40, 43, 41],
+    mel: [[64, .5], [64, .5], [67, .5], [64, .5], [70, 1], [69, 1], [64, .5], [64, .5], [67, .5], [69, .5], [71, 2],
+      [72, .5], [71, .5], [69, .5], [67, .5], [69, 1], [64, 1], [62, .5], [64, .5], [67, .5], [62, .5], [64, 2]] },
+};
+const bgm = { track: null, next: 0, i: 0, bar: 0, nodes: [] };
+const midiHz = n => 440 * Math.pow(2, (n - 69) / 12);
+function bgmStop() { bgm.track = null; }
+function bgmWant() {
+  if (!S || !S.bgm || mode === 'title') return null;
+  if (mode === 'battle') return B.boss ? 'boss' : 'battle';
+  return (map && (!OUTDOOR.has(map.id) || isNight() || map.id === 'witch')) ? 'night' : 'field';
+}
+function bgmNote(f, t, d, wave, vol) {
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = wave; o.frequency.value = f;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .02); g.gain.exponentialRampToValueAtTime(.0008, t + d * .95);
+  o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + d);
+}
+function bgmTick() {
+  const want = bgmWant();
+  if (!want) { bgm.track = null; return; }
+  if (!AC || AC.state !== 'running') return;
+  if (want !== bgm.track) { bgm.track = want; bgm.i = 0; bgm.bar = 0; bgm.next = AC.currentTime + .1; }
+  const tr = BGM[want], beat = 60 / tr.bpm;
+  while (bgm.next < AC.currentTime + .25) {
+    const [n, len] = tr.mel[bgm.i], d = len * beat;
+    if (n) bgmNote(midiHz(n), bgm.next, d, tr.wave, tr.vol);
+    const beatPos = Math.round(bgm.bar / beat * 2) / 2;
+    if (Number.isInteger(beatPos) && beatPos % 2 === 0) bgmNote(midiHz(tr.bass[(beatPos / 2) % tr.bass.length]), bgm.next, beat * 1.9, 'triangle', tr.vol * 1.2);
+    bgm.bar += d;
+    bgm.next += d;
+    bgm.i = (bgm.i + 1) % tr.mel.length;
+    if (bgm.i === 0) bgm.bar = 0;
+  }
+}
+function audioUnlock() {
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+  } catch (e) { }
+}
+window.addEventListener('pointerdown', audioUnlock);
+window.addEventListener('keydown', audioUnlock);
 function sfx(kind) {
   if (!S || !S.sound) return;
   try {
@@ -1954,16 +2078,23 @@ async function enemyAct(e) {
 
 async function endBattle(result) {
   if (result === 'win') {
-    const exp = Math.round(B.enemies.reduce((a, e) => a + e.def.exp, 0) * cozyMult() * (mealOn('tairamen') ? 1.5 : 1));
-    const coin = Math.round(B.enemies.reduce((a, e) => a + e.def.coin, 0) * cozyMult() * (mealOn('pudding') ? 1.5 : 1) * (B.arena ? .6 : 1));
+    const night = isNight() && OUTDOOR.has(map.id) ? 1.2 : 1;
+    const exp = Math.round(B.enemies.reduce((a, e) => a + e.def.exp * (e.shiny ? 3 : 1), 0) * cozyMult() * night * (mealOn('tairamen') ? 1.5 : 1));
+    const coin = Math.round(B.enemies.reduce((a, e) => a + e.def.coin * (e.shiny ? 3 : 1), 0) * cozyMult() * night * (mealOn('pudding') ? 1.5 : 1) * (B.arena ? .6 : 1));
     if (B.arena) S.arenaWins++;
     sfx('win');
     S.coins += coin;
     for (const e of B.enemies) S.dex[e.id] = (S.dex[e.id] || 0) + 1;
+    const drops = [];
+    for (const e of B.enemies) if (e.shiny) {
+      S.shiny[e.id] = (S.shiny[e.id] || 0) + 1;
+      const it = pick(['bigherb', 'onigiri', 'cure', 'tea']); S.items[it]++; drops.push(ITEMS[it].icon + ' ' + ITEMS[it].name);
+    }
     if ((S.quest === 2 && map.id === 'field') || false) S.kills += B.enemies.length;
     if (!B.arena && !B.spar) { rqProgress('kill', B.enemies.length); rqProgress('area', B.enemies.length, map.id); }
     for (const h of B.heroes) S.bond[h.id] = Math.min(100, bondPts(h.id) + (B.boss ? 3 : 1));
-    await say(`승리! 경험치 ${exp}, 보수 ${coin}💰를 얻었다!`, 1000);
+    await say(`승리! 경험치 ${exp}, 보수 ${coin}💰를 얻었다!${night > 1 ? ' (🌙 밤 보너스)' : ''}`, 1000);
+    if (drops.length) await say(`✨ 반짝 몬스터가 ${drops.join(', ')}을(를) 떨어뜨렸다!`, 1000);
     for (const m of S.party) {
       if (B.heroes.some(h => h.m === m)) continue;
       m.exp += Math.floor(exp / 2);
@@ -2060,6 +2191,29 @@ function memberCard(m) {
     </div>
   </div>`;
 }
+function autoHeal() {
+  let used = 0;
+  const HEALS = ['herb', 'fish', 'bigherb', 'tai'].map(k => [k, ITEMS[k].hp]);
+  const MPS = ['tea', 'shrimp'].map(k => [k, ITEMS[k].mp]);
+  for (const m of activeParty()) {
+    const st = heroStats(m);
+    if (m.hp <= 0 && S.items.onigiri > 0) { S.items.onigiri--; m.hp = Math.round(st.maxHp * .5); used++; }
+    if (m.hp <= 0) continue;
+    const fill = (cur, max, list) => {
+      while (cur < max) {
+        const miss = max - cur, own = list.filter(([k]) => S.items[k] > 0);
+        if (!own.length) break;
+        const fit = own.filter(([, v]) => v <= miss).sort((a, b) => b[1] - a[1])[0] || own.sort((a, b) => a[1] - b[1])[0];
+        if (!fit || (fit[1] > miss && miss < fit[1] * .5)) break;
+        S.items[fit[0]]--; cur = Math.min(max, cur + fit[1]); used++;
+      }
+      return cur;
+    };
+    m.hp = fill(m.hp, st.maxHp, HEALS);
+    m.mp = fill(m.mp, st.maxMp, MPS);
+  }
+  return used;
+}
 function useItemField(key, i) {
   const it = ITEMS[key], m = S.party[i], st = heroStats(m);
   if (!S.items[key]) return;
@@ -2097,7 +2251,8 @@ function openMenu() {
       const found = list.filter(([, id]) => S.dex[id]).length;
       return `<div class="box">토벌한 몬스터 <b>${found}</b> / ${list.length}${found === list.length ? ' · 🏆 도감 완성!' : ''}</div><div class="dex">${list.map(([area, id]) => {
         const e = EN[id], n = S.dex[id];
-        return `<div class="dex-c ${n ? '' : 'unknown'} ${e.boss ? 'boss' : ''}">${n ? enemyArt(e) : `<img src="img/${e.img}.png" alt="">`}<b>${n ? e.n : '???'}</b><small>${area}${n ? ` · ${n}회` : ''}</small>${n ? `<small>HP ${e.hp} · 공격 ${e.atk}</small>` : ''}</div>`;
+        const sh = S.shiny[id] || 0;
+        return `<div class="dex-c ${n ? '' : 'unknown'} ${e.boss ? 'boss' : ''} ${sh ? 'has-shiny' : ''}">${n ? enemyArt(e, sh > 0) : `<img src="img/${e.img}.png" alt="">`}<b>${n ? e.n : '???'}</b><small>${area}${n ? ` · ${n}회` : ''}${sh ? ` · ✨${sh}` : ''}</small>${n ? `<small>HP ${e.hp} · 공격 ${e.atk}</small>` : ''}</div>`;
       }).join('')}</div>`;
     }
     if (tab === 'party') {
@@ -2107,7 +2262,8 @@ function openMenu() {
     if (tab === 'items') {
       const own = Object.keys(ITEMS).filter(k => S.items[k] > 0);
       if (!own.length) return '<div class="box">가진 아이템이 없어요. 도구점에서 살 수 있어요.</div>';
-      return own.map(k => `<div class="card"><div class="ico">${ITEMS[k].icon}</div><div class="main">
+      return `<div class="box"><div class="row"><button class="btn blue" data-a="autoheal">🩹 한 번에 회복</button></div>
+        <p class="muted">함께 가는 동료를 가진 아이템으로 알맞게 회복해요. 쓰러진 동료는 주먹밥으로 일으켜요.</p></div>` + own.map(k => `<div class="card"><div class="ico">${ITEMS[k].icon}</div><div class="main">
         <b>${ITEMS[k].name}</b> <span class="muted">×${S.items[k]}</span><div class="muted">${ITEMS[k].desc}</div>
         <div class="use-row">${S.party.map((m, i) => `<button class="btn" data-a="use" data-k="${k}" data-i="${i}">${HERO[m.id].name}</button>`).join('')}</div>
       </div></div>`).join('');
@@ -2131,13 +2287,16 @@ function openMenu() {
         <textarea id="save-code" rows="3" placeholder="여기에 저장 코드를 붙여 넣으세요"></textarea>
         <div class="row"><button class="btn yellow" data-a="export">코드 만들기·복사</button><button class="btn white" data-a="import">불러오기</button></div></div>
       <div class="box"><h3>게임 설정</h3>
-        <div class="row"><button class="btn ${S.sound ? 'pink' : 'white'}" data-a="sound">🔊 효과음 ${S.sound ? 'ON' : 'OFF'}</button>
+        <div class="row"><button class="btn ${S.bgm ? 'pink' : 'white'}" data-a="bgm">🎵 배경음악 ${S.bgm ? 'ON' : 'OFF'}</button>
+        <button class="btn ${S.minimap ? 'pink' : 'white'}" data-a="minimap">🗺️ 미니맵 ${S.minimap ? 'ON' : 'OFF'}</button></div>
+        <div class="row" style="margin-top:6px"><button class="btn ${S.sound ? 'pink' : 'white'}" data-a="sound">🔊 효과음 ${S.sound ? 'ON' : 'OFF'}</button>
         <button class="btn ${S.speed > 1 ? 'yellow' : 'white'}" data-a="speed">⏩ 전투 속도 ${S.speed}×</button></div>
         <p class="muted">전투 속도와 자동 전투는 전투 화면 위쪽 버튼으로도 바꿀 수 있어요.</p></div>
       <div class="box"><h3>조작법</h3><p class="muted">이동: 방향키·WASD 또는 화면 왼쪽 아래 버튼<br>조사·대화: Space·Enter 또는 「조사」 버튼<br>메뉴: Esc</p></div>
       <div class="box"><p class="muted">비영리 팬메이드 게임 · 원작: 나가노 「먼가 작고 귀여운 녀석」</p></div>`;
   }, d => {
     if (d.a === 'use') { useItemField(d.k, +d.i); redrawPanel(); }
+    else if (d.a === 'autoheal') { const n = autoHeal(); toast(n ? `🩹 아이템 ${n}개로 모두 회복했어요` : '회복할 동료가 없거나 아이템이 부족해요'); save(); redrawPanel(); }
     else if (d.a === 'toggle') {
       const i = S.active.indexOf(d.id);
       if (i >= 0) { if (S.active.length <= 1) return toast('한 명은 함께 가야 해요'); S.active.splice(i, 1); }
@@ -2156,6 +2315,8 @@ function openMenu() {
     else if (d.a === 'save') { save(); toast('저장했어요!'); }
     else if (d.a === 'rqdrop') { S.repeat = false; S.rq = null; toast('의뢰를 포기했어요. 게시판에서 새 의뢰를 받을 수 있어요'); save(); redrawPanel(); updateHud(); }
     else if (d.a === 'sound') { S.sound = !S.sound; sfx('menu'); redrawPanel(); }
+    else if (d.a === 'bgm') { S.bgm = !S.bgm; if (!S.bgm) bgmStop(); redrawPanel(); }
+    else if (d.a === 'minimap') { S.minimap = !S.minimap; redrawPanel(); }
     else if (d.a === 'speed') { S.speed = S.speed >= 3 ? 1 : S.speed + 1; redrawPanel(); }
     else if (d.a === 'ach') {
       const a = ACH.find(x => x.id === d.id);
