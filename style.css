@@ -323,3 +323,6 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 
 .bar.heart i { background: #ff8fb1; }
 .hearts { color: #e8495f; font-size: 14px; letter-spacing: 1px; }
+
+.btn.mini { min-width: 0; font-size: 12px; padding: 1px 8px; margin-left: 4px; box-shadow: none; }
+#save-code { width: 100%; font-family: monospace; font-size: 11px; border: 2px solid var(--ink); border-radius: 10px; padding: 6px; margin: 6px 0; resize: vertical; }
