@@ -172,11 +172,14 @@ const HERO_IMG = { chiikawa: 'img/chiikawa.png', hachiware: 'img/hachiware.png',
 const RECRUITS = ['usagi', 'momonga', 'kuri', 'shisa', 'rakko', 'furuhon', 'pajama', 'pochette'];
 const PARTY_MAX = 4;
 const expNext = lv => Math.round(10 * Math.pow(lv, 1.5));
+const bondPts = id => (S && S.bond && S.bond[id]) || 0;
+const bondLv = id => { const p = bondPts(id); return p >= 100 ? 3 : p >= 50 ? 2 : p >= 20 ? 1 : 0; };
+const BOND_STEPS = [20, 50, 100];
 function heroStats(m) {
-  const h = HERO[m.id], L = m.lv - 1;
+  const h = HERO[m.id], L = m.lv - 1, b = 1 + .05 * bondLv(m.id);
   return {
-    maxHp: Math.round(h.hp + h.g.hp * L), maxMp: Math.round(h.mp + h.g.mp * L),
-    atk: Math.round(h.atk + h.g.atk * L) + m.wpn * 3, def: Math.round(h.def + h.g.def * L) + m.charm * 2,
+    maxHp: Math.round((h.hp + h.g.hp * L) * b), maxMp: Math.round(h.mp + h.g.mp * L),
+    atk: Math.round((h.atk + h.g.atk * L) * b) + m.wpn * 3, def: Math.round((h.def + h.g.def * L) * b) + m.charm * 2,
     spd: Math.round(h.spd + h.g.spd * L),
   };
 }
@@ -191,6 +194,7 @@ function newMember(id, lv = 1) {
 const ITEMS = {
   herb: { name: '약초', icon: '🌿', desc: 'HP 40 회복', price: 12, hp: 40 },
   bigherb: { name: '큰 약초', icon: '🍀', desc: 'HP 150 회복', price: 45, hp: 150 },
+  cure: { name: '만능약', icon: '💊', desc: '독과 잠듦을 낫게 한다 (전투 중)', price: 30, cure: true },
   tea: { name: '보리차', icon: '🍵', desc: '기력(MP) 15 회복', price: 25, mp: 15 },
   onigiri: { name: '주먹밥', icon: '🍙', desc: '쓰러진 동료를 HP 50%로 일으킨다', price: 80, revive: .5 },
   fish: { name: '구운 전갱이', icon: '🐟', desc: 'HP 80 회복 (낚시로 얻음)', hp: 80, shop: false },
@@ -217,6 +221,19 @@ const DECOR = [
   { id: 'tent', name: '캠핑 텐트', icon: '⛺', price: 5000, x: 6, y: 6 },
   { id: 'fountain', name: '작은 분수', icon: '⛲', price: 9000, x: 3, y: 7 },
 ];
+const GIFT_PRICE = 100;
+const GIFT_LINES = {
+  chiikawa: ['…!! (반짝반짝)', '와…! 고마워…!', '(냠냠… 행복)'],
+  hachiware: ['와~ 맛있겠다! 고마워!', '같이 먹자!', '역시 간식은 최고야~'],
+  usagi: ['야하!', '우라!', '후루루루~'],
+  momonga: ['흥, 이 정도로 넘어갈 줄 알고? …맛있다!', '더 줘!', '칭찬도 같이 해 줘!'],
+  kuri: ['프하ー! 이거 안주로 딱이네!', '고맙다, 꼬마들!', '음~ 좋은 맛이야.'],
+  shisa: ['우와, 감사합니다! 열심히 할게요!', '마스터한테 자랑해야지!', '맛있어요~!'],
+  rakko: ['…고맙다.', '…나쁘지 않군.', '(조용히 먹는다)'],
+  furuhon: ['아… 감사해요. 책 읽으면서 먹을게요.', '이건 귀한 간식이네요…!', '고마워요…!'],
+  pajama: ['우와와ー!!', '와와와!', '우와와와~♪'],
+  pochette: ['감사합니다! 포셰트에 넣어 둘게요!', '이렇게 귀여운 간식을…!', '든든하네요!'],
+};
 const RECIPES = [
   { id: 'omu', name: '오므라이스', icon: '🍳', need: { fish: 1 }, coin: 200, battles: 3, desc: '공격력 +20%' },
   { id: 'tendon', name: '텐동', icon: '🍚', need: { shrimp: 2 }, coin: 100, battles: 3, desc: '받는 피해 -15%' },
@@ -252,6 +269,9 @@ const ACH = [
   { id: 'cook5', name: '요리사 치이카와', desc: '요리를 5번 만들기', goal: 5, now: () => S.cooked, coin: 800 },
   { id: 'awaken', name: '각성', desc: '동료 한 명이 Lv.25가 되어 각성 스킬 배우기', goal: AWAKEN_LV, now: maxLv, coin: 2000 },
   { id: 'arena5', name: '재대결 챔피언', desc: '보스 재대결에서 5번 이기기', goal: 5, now: () => S.arenaWins, coin: 5000 },
+  { id: 'bond3', name: '단짝 친구', desc: '동료 한 명과 친밀도 ♥3', goal: 3, now: () => Math.max(...S.party.map(m => bondLv(m.id))), coin: 3000 },
+  { id: 'rq10', name: '성실한 일꾼', desc: '오늘의 의뢰를 10번 완료', goal: 10, now: () => S.rqDone || 0, coin: 4000 },
+  { id: 'streak7', name: '꾸준함', desc: '7일 연속 출석', goal: 7, now: () => S.streak || 0, coin: 2000 },
   { id: 'rank1', name: '토벌 1급', desc: '토벌 1급 시험에 합격', goal: 1, now: () => S.quest >= 11 ? 1 : 0, coin: 10000 },
 ];
 function checkAch() {
@@ -262,28 +282,28 @@ function checkAch() {
 
 const EN = {
   kimera: { n: '작은 키메라', img: 'mon_pink', hp: 18, atk: 7, def: 2, spd: 5, exp: 6, coin: 5 },
-  bee: { n: '수상한 벌', img: 'mon_bee', hp: 15, atk: 8, def: 2, spd: 10, exp: 7, coin: 6 },
+  bee: { n: '수상한 벌', img: 'mon_bee', hp: 15, atk: 8, def: 2, spd: 10, exp: 7, coin: 6 , status: { kind: 'poison', p: .3 } },
   spiky: { n: '가면 키메라', img: 'mon_mask', hp: 16, atk: 9, def: 2, spd: 8, exp: 8, coin: 7 },
-  mush: { n: '산할멈', img: 'mon_yamanba', hp: 45, atk: 13, def: 6, spd: 6, exp: 16, coin: 12 },
+  mush: { n: '산할멈', img: 'mon_yamanba', hp: 45, atk: 13, def: 6, spd: 6, exp: 16, coin: 12 , status: { kind: 'sleep', p: .25 } },
   anoko: { n: '하얀 키메라', img: 'mon_anoko', hp: 55, atk: 15, def: 7, spd: 7, exp: 18, coin: 13 },
   shadow: { n: '큰 새', img: 'mon_bird', w: 1.5, hp: 40, atk: 17, def: 5, spd: 10, exp: 20, coin: 15 },
-  bat: { n: '외눈 촉수', img: 'mon_eyebug', hp: 70, atk: 22, def: 8, spd: 14, exp: 30, coin: 22 },
+  bat: { n: '외눈 촉수', img: 'mon_eyebug', hp: 70, atk: 22, def: 8, spd: 14, exp: 30, coin: 22 , status: { kind: 'poison', p: .3 } },
   rock: { n: '검은 유성', img: 'mon_star', hp: 120, atk: 20, def: 16, spd: 4, exp: 34, coin: 25 },
   elephant: { n: '악몽 코끼리', img: 'mon_elephant', hp: 95, atk: 25, def: 10, spd: 9, exp: 36, coin: 28 },
   boss1: { n: '숲의 주인', img: 'mon_pond', hp: 380, atk: 24, def: 9, spd: 7, exp: 150, coin: 200, boss: true, aoe: '고구마 던지기' },
   boss2: { n: '크고 강한 녀석', img: 'mon_deka', hp: 1100, atk: 34, def: 14, spd: 9, exp: 500, coin: 600, boss: true, aoe: '땅 울리기', twice: true },
   puffer: { n: '부풀 복어', img: 'mon_puffer', hp: 160, atk: 40, def: 18, spd: 10, exp: 70, coin: 45 },
   sunfish: { n: '개복치', img: 'mon_sunfish', hp: 220, atk: 36, def: 22, spd: 6, exp: 80, coin: 50 },
-  mermaid: { n: '꼬마 인어', img: 'mon_mermaid', hp: 130, atk: 44, def: 14, spd: 18, exp: 75, coin: 48 },
-  siren: { n: '세이렌', img: 'mon_siren', hp: 2600, atk: 46, def: 20, spd: 14, exp: 900, coin: 1200, boss: true, aoe: '세이렌의 노래' },
-  snake: { n: '뱀 석상', img: 'mon_snake', hp: 300, atk: 50, def: 30, spd: 8, exp: 120, coin: 70 },
+  mermaid: { n: '꼬마 인어', img: 'mon_mermaid', hp: 130, atk: 44, def: 14, spd: 18, exp: 75, coin: 48 , status: { kind: 'sleep', p: .3 } },
+  siren: { n: '세이렌', img: 'mon_siren', hp: 2600, atk: 46, def: 20, spd: 14, exp: 900, coin: 1200, boss: true, aoe: '세이렌의 노래', aoeStatus: { kind: 'sleep', p: .35 } },
+  snake: { n: '뱀 석상', img: 'mon_snake', hp: 300, atk: 50, def: 30, spd: 8, exp: 120, coin: 70 , status: { kind: 'poison', p: .35 } },
   rabbit: { n: '의태 토끼', img: 'mon_rabbit', hp: 240, atk: 56, def: 20, spd: 20, exp: 130, coin: 75 },
   crier: { n: '울보 섬주민', img: 'mon_crier', hp: 280, atk: 52, def: 24, spd: 12, exp: 125, coin: 72 },
   sphinx: { n: '스핑크스', img: 'mon_sphinx', hp: 4500, atk: 58, def: 26, spd: 16, exp: 2000, coin: 2500, boss: true, aoe: '수수께끼 광선', twice: true },
   goblin: { n: '고블린 형제', img: 'mon_goblin', hp: 380, atk: 66, def: 30, spd: 14, exp: 180, coin: 95 },
-  kendama: { n: '켄다마 유령', img: 'mon_kendama', hp: 320, atk: 72, def: 26, spd: 22, exp: 190, coin: 100 },
+  kendama: { n: '켄다마 유령', img: 'mon_kendama', hp: 320, atk: 72, def: 26, spd: 22, exp: 190, coin: 100 , status: { kind: 'sleep', p: .3 } },
   nightmask: { n: '밤의 가면 키메라', img: 'mon_mask', filter: 'hue-rotate(210deg) brightness(.85)', hp: 350, atk: 70, def: 28, spd: 18, exp: 185, coin: 98 },
-  witch: { n: '숲의 마녀', img: 'mon_witch', filter: 'drop-shadow(0 0 2px #fff) drop-shadow(0 0 10px #c9a8ff)', hp: 7000, atk: 74, def: 32, spd: 18, exp: 4000, coin: 5000, boss: true, aoe: '저주의 주문', twice: true },
+  witch: { n: '숲의 마녀', img: 'mon_witch', filter: 'drop-shadow(0 0 2px #fff) drop-shadow(0 0 10px #c9a8ff)', hp: 7000, atk: 74, def: 32, spd: 18, exp: 4000, coin: 5000, boss: true, aoe: '저주의 주문', twice: true, aoeStatus: { kind: 'poison', p: .5 } },
   deka2: { n: '진짜 크고 강한 녀석', img: 'mon_deka2', hp: 12000, atk: 88, def: 38, spd: 20, exp: 8000, coin: 10000, boss: true, aoe: '대지 가르기', twice: true },
   rakko: { n: '랏코', img: 'npc_rakko', hp: 1400, atk: 36, def: 15, spd: 16, exp: 300, coin: 0, boss: true, aoe: '랭커의 일격' },
 };
@@ -504,12 +524,13 @@ function freshState() {
     coins: 30,
     party: [newMember('chiikawa'), newMember('hachiware')],
     active: ['chiikawa', 'hachiware'],
-    items: { herb: 3, bigherb: 0, tea: 1, onigiri: 0, fish: 0, shrimp: 0, tai: 0 },
+    items: { herb: 3, bigherb: 0, tea: 1, onigiri: 0, cure: 2, fish: 0, shrimp: 0, tai: 0 },
     fished: 0, fishTip: false,
     quest: 0, weeds: 0, kills: 0, repeat: false,
     flags: { usagi: false, boss1: false, boss2: false, momonga: false, kuri: false, shisa: false, rakko: false, siren: false, sphinx: false, witch: false, deka2: false, furuhon: false, pajama: false, pochette: false },
     dex: {}, autoBattle: false, speed: 1, sound: true,
     visited: { town: true }, decor: {}, ach: {}, achSeen: {}, weedTotal: 0, meal: null, cooked: 0, arenaWins: 0,
+    bond: {}, rq: null, rqDone: 0, lastLogin: '', streak: 0, gifts: 0,
     steps: 0, playTime: 0,
   };
 }
@@ -764,6 +785,7 @@ function pullWeed(w) {
   S.coins += coin;
   if (S.quest === 1) S.weeds++;
   S.weedTotal++;
+  if (map.id === 'field') rqProgress('weed', 1);
   sfx('coin');
   toast(`🌿 풀을 뽑았다! +${coin}💰` + (S.quest === 1 ? `<br><small>(${Math.min(S.weeds, 5)}/5)</small>` : ''));
   updateHud();
@@ -888,7 +910,9 @@ function objective() {
     case 8: return '📌 노동 게시판에서 새 특별 의뢰를 받자';
     case 9: return S.flags.witch ? '📌 노동 게시판에 보고하자' : '📌 특별 의뢰: 「마녀의 숲」의 마녀 토벌';
     case 10: return S.flags.deka2 ? '📌 노동 게시판에 보고하자' : '📌 토벌 1급 시험: 「진짜 크고 강한 녀석」 토벌';
-    default: return S.repeat ? (S.kills >= 10 ? '📌 노동 게시판에 보고하자' : `📌 오늘의 토벌 의뢰 (${S.kills}/10)`) : '⭐ 토벌 1급! 업적을 모아 보자';
+    default:
+      fixRq();
+      return S.repeat ? (S.rq.got >= S.rq.need ? '📌 노동 게시판에 보고하자' : `📌 오늘의 의뢰: ${rqText(S.rq).replace(' 주세요.', '')} (${S.rq.got}/${S.rq.need})`) : '⭐ 토벌 1급! 노동 게시판에서 오늘의 의뢰를 받자';
   }
 }
 
@@ -1118,6 +1142,39 @@ async function boardMenu() {
   });
 }
 
+const RQ_AREAS = { field: '풀숲', forest: '깊은 숲', cave: '어두운 동굴', beach: '바닷가', ruins: '수수께끼의 유적', witch: '마녀의 숲' };
+function newRq() {
+  const types = ['kill'];
+  const areas = Object.keys(RQ_AREAS).filter(a => S.visited[a]);
+  if (areas.length) types.push('area', 'area');
+  if (S.visited.beach) types.push('fish');
+  types.push('weed');
+  const type = pick(types);
+  const item = pick(['bigherb', 'tea', 'onigiri', 'cure']);
+  if (type === 'area') return { type, area: pick(areas), need: 6, got: 0, item };
+  if (type === 'fish') return { type, need: 5, got: 0, item };
+  if (type === 'weed') return { type, need: 8, got: 0, item };
+  return { type: 'kill', need: 10, got: 0, item };
+}
+function fixRq() {
+  if (S.repeat && !S.rq) S.rq = { type: 'kill', need: 10, got: S.kills || 0, item: 'bigherb' };
+}
+function rqText(q) {
+  return { kill: '어디서든 몬스터를 10마리 토벌해 주세요.', area: `「${RQ_AREAS[q.area]}」에서 몬스터를 6마리 토벌해 주세요.`,
+    fish: '바닷가에서 물고기를 5번 낚아 주세요.', weed: '풀숲에서 풀을 8개 뽑아 주세요.' }[q.type];
+}
+function rqReward(q) {
+  const lv = Math.max(...activeParty().map(m => m.lv));
+  return Math.round((150 + lv * 25) * ({ kill: 1, area: 1.2, fish: .9, weed: .7 }[q.type]));
+}
+function rqProgress(type, n, area) {
+  if (!S.repeat || !S.rq || S.rq.type !== type || (area && S.rq.area !== area)) return;
+  const before = S.rq.got;
+  S.rq.got = Math.min(S.rq.need, S.rq.got + n);
+  if (before < S.rq.need && S.rq.got >= S.rq.need) setTimeout(() => toast('📌 오늘의 의뢰 완료!<br><small>노동 게시판에 보고하자</small>'), 400);
+  updateHud();
+}
+
 async function boardEvent() {
   const q = S.quest;
   if (q === 0) {
@@ -1246,16 +1303,19 @@ async function boardEvent() {
     ]);
     S.quest = 11; S.repeat = false;
   } else {
+    fixRq();
     if (!S.repeat) {
-      await talk([['armor', '오늘의 토벌 의뢰예요. 어디서든 키메라를 10마리 토벌해 주세요.']]);
-      S.repeat = true; S.kills = 0;
-    } else if (S.kills < 10) {
-      await talk([['armor', `오늘의 토벌 의뢰 진행 중이에요. (${S.kills}/10)`]]);
+      S.rq = newRq();
+      S.repeat = true;
+      await talk([['armor', `오늘의 의뢰예요. ${rqText(S.rq)}`], ['armor', `보수는 💰${fmt(rqReward(S.rq))}, 그리고 덤으로 ${ITEMS[S.rq.item].icon} ${ITEMS[S.rq.item].name}이에요.`]]);
+    } else if (S.rq.got < S.rq.need) {
+      await talk([['armor', `의뢰 진행 중이에요. ${rqText(S.rq)} (${S.rq.got}/${S.rq.need})`], ['armor', '다른 의뢰로 바꾸고 싶으면 다시 말을 걸기 전에 메뉴 → 의뢰에서 포기할 수 있어요.']]);
     } else {
-      const reward = 150 + Math.round(activeParty()[0].lv * 25);
-      S.coins += reward;
-      S.repeat = false;
-      await talk([['armor', `수고하셨어요! 보수 ${reward}💰예요.`], ['chiikawa', '…헤헤.']]);
+      const reward = rqReward(S.rq);
+      S.coins += reward; S.items[S.rq.item]++;
+      S.rqDone = (S.rqDone || 0) + 1;
+      S.repeat = false; S.rq = null;
+      await talk([['armor', `수고하셨어요! 보수 ${fmt(reward)}💰예요.`], ['chiikawa', '…헤헤.']]);
     }
   }
   updateHud();
@@ -1352,7 +1412,7 @@ function refreshBattle() {
     el.querySelector('.mpn').textContent = `기력 ${h.mp}`;
     el.classList.toggle('ko', h.hp <= 0);
     el.classList.toggle('active', B.cur === h);
-    el.querySelector('.buffs').textContent = (h.buffs.teary > 0 ? '💧각성 ' : '') + (h.buffs.song > 0 ? '🎸업 ' : '') + (h.buffs.shell > 0 ? '🛡️보호 ' : '') + (h.buffs.taunt > 0 ? '📢도발 ' : '') + (h.guard ? '방어' : '');
+    el.querySelector('.buffs').textContent = (h.buffs.teary > 0 ? '💧각성 ' : '') + (h.buffs.song > 0 ? '🎸업 ' : '') + (h.buffs.shell > 0 ? '🛡️보호 ' : '') + (h.buffs.taunt > 0 ? '📢도발 ' : '') + (h.buffs.poison > 0 ? '☠️독 ' : '') + (h.buffs.sleep > 0 ? '💤잠 ' : '') + (h.guard ? '방어' : '');
   });
 }
 const enemyEl = e => bEl.enemies.querySelector(`.en[data-k="${e.key}"]`);
@@ -1410,6 +1470,7 @@ function damage(att, tgt, mult) {
   if (tgt.buffs.shell > 0) dmg *= .7;
   if (tgt.buffs.expose > 0) dmg *= 1.3;
   if (tgt.side === 'hero' && mealOn('tendon')) dmg *= .85;
+  if (tgt.buffs.sleep > 0 && Math.random() < .4) tgt.buffs.sleep = 0;
   dmg = Math.max(1, Math.round(dmg));
   tgt.hp = Math.max(0, tgt.hp - dmg);
   floatAt(tgt, (crit ? '치명타! ' : '') + dmg, crit ? 'crit' : '');
@@ -1427,7 +1488,11 @@ async function battleLoop() {
       .sort((a, b) => b.s - a.s).map(o => o.u);
     for (const u of order) {
       if (u.hp <= 0) continue;
-      if (u.side === 'hero') {
+      if (u.side === 'hero' && u.buffs.sleep > 0) {
+        u.guard = false;
+        refreshBattle();
+        await say(`${josa(u.name, '은는')} 쿨쿨 잠들어 있다… 💤`, 600);
+      } else if (u.side === 'hero') {
         u.guard = false;
         const act = await chooseAction(u);
         if (act.type === 'flee') {
@@ -1436,6 +1501,11 @@ async function battleLoop() {
           await say('하지만 도망칠 수 없었다!', 700);
         } else await heroAct(u, act);
       } else await enemyAct(u);
+      if (u.side === 'hero' && u.buffs.poison > 0 && u.hp > 1) {
+        const v = Math.min(u.hp - 1, Math.max(1, Math.round(u.st.maxHp * .08)));
+        u.hp -= v; floatAt(u, '☠️' + v, ''); refreshBattle();
+        await say(`${josa(u.name, '은는')} 독 때문에 ${v}의 피해를 입었다!`, 500);
+      }
       for (const k in u.buffs) if (u.buffs[k] > 0) u.buffs[k]--;
       refreshBattle();
       if (!alive(B.enemies).length) return 'win';
@@ -1470,6 +1540,8 @@ function autoAction(u) {
   const heal = skills.find(s => ['encore', 'kanpai', 'nantoka', 'snack', 'delivery'].includes(s.id));
   if (low.length && heal) return { type: 'skill', s: heal, target: low[0] };
   if (ko && S.items.onigiri > 0 && u.hp > 0) return { type: 'item', key: 'onigiri', target: ko };
+  const sick = heroes.find(h => h.buffs.sleep > 0 || (h.buffs.poison > 0 && ratio(h) < .6));
+  if (sick && S.items.cure > 0) return { type: 'item', key: 'cure', target: sick };
   const target = foes.slice().sort((a, b) => a.hp - b.hp)[0];
   const rich = u.mp >= u.st.maxMp * .4 || B.boss;
   const allS = skills.filter(s => s.target === 'all').sort((a, b) => b.mult - a.mult)[0];
@@ -1579,7 +1651,12 @@ async function heroAct(u, act) {
     const it = ITEMS[act.key], t = act.target;
     S.items[act.key]--;
     const st = t.st;
-    if (it.revive) {
+    if (it.cure) {
+      const had = t.buffs.poison > 0 || t.buffs.sleep > 0;
+      cureStatus(t); refreshBattle();
+      if (had) floatAt(t, '회복!', 'heal');
+      await say(had ? `${josa(it.name, '을를')} 먹고 ${t.name}의 상태가 깨끗이 나았다!` : '효과가 없었다…');
+    } else if (it.revive) {
       if (t.hp > 0) { await say('효과가 없었다…'); return; }
       t.hp = Math.round(st.maxHp * it.revive);
       floatAt(t, '부활!', 'heal');
@@ -1601,6 +1678,7 @@ async function heroAct(u, act) {
       await say(`${u.name}: "야ー!! 야ー!!" 눈물을 꾹 참고 각성했다!`);
     } else if (s.id === 'nantoka') {
       for (const h of alive(B.heroes)) {
+        cureStatus(h);
         const st = h.st, v = Math.min(st.maxHp - h.hp, Math.max(15, Math.round(st.maxHp * .3)));
         h.hp += v; floatAt(h, '+' + v, 'heal');
       }
@@ -1608,6 +1686,7 @@ async function heroAct(u, act) {
       await say('하치와레: "어떻게든 될 거야!" 모두의 HP가 회복되었다!');
     } else if (s.id === 'encore') {
       for (const h of alive(B.heroes)) {
+        cureStatus(h);
         const v = Math.min(h.st.maxHp - h.hp, Math.round(h.st.maxHp * .5));
         h.hp += v; h.buffs.song = h === u ? 4 : 3; floatAt(h, '+' + v, 'heal');
       }
@@ -1615,6 +1694,7 @@ async function heroAct(u, act) {
       await say('♪ 하치와레의 노래에 모두가 따라 불렀다! HP 회복 · 공격력 업!');
     } else if (s.id === 'kanpai') {
       for (const h of alive(B.heroes)) {
+        cureStatus(h);
         const v = Math.min(h.st.maxHp - h.hp, Math.round(h.st.maxHp * .35));
         h.hp += v; h.mp = Math.min(h.st.maxMp, h.mp + 8); floatAt(h, '+' + v, 'heal');
       }
@@ -1683,6 +1763,7 @@ async function heroAct(u, act) {
       await say('시사: "다들 힘내요ー!" 모두 피해를 덜 받게 되었다!');
     } else if (s.id === 'delivery') {
       const t = act.target && act.target.hp > 0 ? act.target : u;
+      cureStatus(t);
       const v = Math.min(t.st.maxHp - t.hp, Math.round(t.st.maxHp * .6));
       t.hp += v; floatAt(t, '+' + v, 'heal');
       refreshBattle();
@@ -1716,6 +1797,15 @@ async function checkDead(t) {
   await say(`${josa(t.name, '을를')} 토벌했다!`, 500);
 }
 
+const STATUS_NAME = { poison: '독', sleep: '잠듦' };
+function inflict(h, st) {
+  if (!st || h.hp <= 0 || Math.random() >= st.p) return '';
+  if (st.kind === 'poison') { if (h.buffs.poison > 0) return ''; h.buffs.poison = 4; return ` ${josa(h.name, '은는')} 독에 걸렸다!`; }
+  if (st.kind === 'sleep') { if (h.buffs.sleep > 0) return ''; h.buffs.sleep = randi(2, 3); return ` ${josa(h.name, '은는')} 잠들어 버렸다!`; }
+  return '';
+}
+function cureStatus(h) { h.buffs.poison = 0; h.buffs.sleep = 0; }
+
 async function enemyAct(e) {
   const targets = alive(B.heroes);
   if (!targets.length) return;
@@ -1723,13 +1813,15 @@ async function enemyAct(e) {
   anim(enemyEl(e), 'act');
   if (e.def.aoe && e.acts % 3 === 0) {
     await say(`${e.name}의 「${e.def.aoe}」!`, 600);
-    for (const h of targets) damage(e, h, .8);
-    await say('모두에게 큰 피해!');
+    let extra = '';
+    for (const h of targets) { damage(e, h, .8); extra += inflict(h, e.def.aoeStatus); }
+    await say('모두에게 큰 피해!' + extra);
   } else {
     const taunt = targets.filter(h => h.buffs.taunt > 0);
     const t = pick(taunt.length ? taunt : targets);
     const r = damage(e, t, 1);
-    await say(`${e.name}의 공격! ${josa(t.name, '은는')} ${r.dmg}의 피해를 입었다!${Math.random() < .5 ? ' "' + pick(HERO[t.id].say.hurt) + '"' : ''}`);
+    const extra = inflict(t, e.def.status);
+    await say(`${e.name}의 공격! ${josa(t.name, '은는')} ${r.dmg}의 피해를 입었다!${extra || (Math.random() < .5 ? ' "' + pick(HERO[t.id].say.hurt) + '"' : '')}`);
   }
   for (const h of targets) {
     if (h.hp <= 0) await say(`${josa(h.name, '은는')} 쓰러지고 말았다…`, 600);
@@ -1744,7 +1836,9 @@ async function endBattle(result) {
     sfx('win');
     S.coins += coin;
     for (const e of B.enemies) S.dex[e.id] = (S.dex[e.id] || 0) + 1;
-    if ((S.quest === 2 && map.id === 'field') || (S.quest >= 11 && S.repeat)) S.kills += B.enemies.length;
+    if ((S.quest === 2 && map.id === 'field') || false) S.kills += B.enemies.length;
+    if (!B.arena && !B.spar) { rqProgress('kill', B.enemies.length); rqProgress('area', B.enemies.length, map.id); }
+    for (const h of B.heroes) S.bond[h.id] = Math.min(100, bondPts(h.id) + (B.boss ? 3 : 1));
     await say(`승리! 경험치 ${exp}, 보수 ${coin}💰를 얻었다!`, 1000);
     for (const m of S.party) {
       if (B.heroes.some(h => h.m === m)) continue;
@@ -1841,6 +1935,7 @@ function memberCard(m) {
 function useItemField(key, i) {
   const it = ITEMS[key], m = S.party[i], st = heroStats(m);
   if (!S.items[key]) return;
+  if (it.cure) return toast('독과 잠듦은 전투 중에만 걸려요. 전투에서 써 주세요');
   if (it.revive) { if (m.hp > 0) return toast('쓰러진 동료에게만 쓸 수 있어요'); m.hp = Math.round(st.maxHp * it.revive); }
   else {
     if (m.hp <= 0) return toast('쓰러진 동료는 주먹밥으로 일으켜야 해요');
@@ -1891,7 +1986,8 @@ function openMenu() {
     }
     if (tab === 'quest') {
       const qs = [[1, '풀뽑기 의뢰'], [2, '풀숲의 키메라 토벌'], [3, '숲의 주인 토벌'], [4, '토벌 자격 시험'], [6, '특별 의뢰: 바닷가의 세이렌'], [7, '특별 의뢰: 유적의 스핑크스'], [9, '특별 의뢰: 마녀의 숲의 마녀'], [10, '토벌 1급 시험: 진짜 크고 강한 녀석']];
-      return `<div class="box"><h3>지금 할 일</h3>${objective()}</div>
+      return `<div class="box"><h3>지금 할 일</h3>${objective()}${S.repeat && S.rq ? `<div class="row" style="margin-top:6px"><button class="btn white" data-a="rqdrop">오늘의 의뢰 포기하기</button></div>` : ''}</div>
+        <div class="box muted">📅 연속 출석 ${S.streak || 0}일 · 오늘의 의뢰 완료 ${S.rqDone || 0}회</div>
         <div class="box"><h3>이야기 진행</h3><ul class="quest-list">${qs.map(([n, q]) =>
           `<li class="${S.quest > n ? 'done' : S.quest === n ? 'now' : ''}">${S.quest > n ? '✅' : S.quest === n ? '▶' : '·'} ${q}</li>`).join('')}</ul></div>
         <div class="box"><h3>동료 (${S.party.length}/${Object.keys(HERO).length})</h3><ul class="quest-list">${[
@@ -1918,6 +2014,7 @@ function openMenu() {
       resetChain(); save(); redrawPanel();
     }
     else if (d.a === 'save') { save(); toast('저장했어요!'); }
+    else if (d.a === 'rqdrop') { S.repeat = false; S.rq = null; toast('의뢰를 포기했어요. 게시판에서 새 의뢰를 받을 수 있어요'); save(); redrawPanel(); updateHud(); }
     else if (d.a === 'sound') { S.sound = !S.sound; sfx('menu'); redrawPanel(); }
     else if (d.a === 'speed') { S.speed = S.speed >= 3 ? 1 : S.speed + 1; redrawPanel(); }
     else if (d.a === 'ach') {
@@ -1946,7 +2043,19 @@ async function restAtHome() {
 }
 function openHome() {
   sfx('menu');
-  openPanel('치이카와네 집', [['rest', '🛏️ 쉬기'], ['cook', '🍳 요리'], ['decor', '🪴 꾸미기']], tab => {
+  openPanel('치이카와네 집', [['rest', '🛏️ 쉬기'], ['cook', '🍳 요리'], ['friend', '💕 친구'], ['decor', '🪴 꾸미기']], tab => {
+    if (tab === 'friend') {
+      return `<div class="box">간식을 주거나 함께 싸우면 친밀도가 올라요. 하트 하나마다 <b>HP·공격·방어 +5%</b> (최대 ♥3).
+        <p class="muted">간식 한 번에 💰${GIFT_PRICE} · 친밀도 +5 · 보유 💰${fmt(S.coins)}</p></div>` +
+        S.party.map(m => {
+          const p = bondPts(m.id), lv = bondLv(m.id), next = BOND_STEPS[lv];
+          return `<div class="card"><div class="ico"><img src="${HERO_IMG[m.id]}" alt=""></div>
+            <div class="main"><b>${HERO[m.id].name}</b> <span class="hearts">${'♥'.repeat(lv)}${'♡'.repeat(3 - lv)}</span>
+              <div class="bar heart"><i style="width:${next ? (p / next * 100) : 100}%"></i></div>
+              <div class="muted">친밀도 ${p}${next ? ` / 다음 하트까지 ${next - p}` : ' · 최고!'}</div></div>
+            <button class="btn pink" data-a="gift" data-id="${m.id}" ${p >= 100 || S.coins < GIFT_PRICE ? 'disabled' : ''}>🍡 간식</button></div>`;
+        }).join('');
+    }
     const n = Object.keys(S.decor).length;
     if (tab === 'cook') {
       const cur = S.meal && S.meal.left > 0 ? RECIPES.find(x => x.id === S.meal.id) : null;
@@ -1972,6 +2081,16 @@ function openHome() {
     </div>`).join('');
   }, d => {
     if (d.a === 'rest') restAtHome();
+    else if (d.a === 'gift') {
+      if (S.coins < GIFT_PRICE || bondPts(d.id) >= 100) return;
+      const before = bondLv(d.id);
+      S.coins -= GIFT_PRICE; S.gifts++;
+      S.bond[d.id] = Math.min(100, bondPts(d.id) + 5);
+      const up = bondLv(d.id) > before;
+      sfx(up ? 'level' : 'heal');
+      toast(`🍡 ${HERO[d.id].name}: "${pick(GIFT_LINES[d.id])}"${up ? `<br><small>💕 친밀도 ♥${bondLv(d.id)} 달성! 능력치 업</small>` : ''}`);
+      checkAch(); save(); redrawPanel();
+    }
     else if (d.a === 'cook') {
       const r = RECIPES.find(x => x.id === d.id);
       if (!r || S.coins < r.coin || !Object.entries(r.need).every(([k, v]) => S.items[k] >= v)) return;
@@ -2088,6 +2207,7 @@ function fishAction() {
     let r = Math.random(), c = CATCHES[0];
     for (const x of CATCHES) { if ((r -= x.p) <= 0) { c = x; break; } }
     S.fished++;
+    rqProgress('fish', 1);
     if (c.item) S.items[c.item]++;
     let extra = '';
     if (c.coin) { const v = 80 + activeParty()[0].lv * 5; S.coins += v; extra = ` (+${v}💰)`; }
@@ -2150,6 +2270,21 @@ $('#hud-menu').addEventListener('click', () => { if (mode === 'map') openMenu();
 document.addEventListener('visibilitychange', () => { if (document.hidden && S && mode !== 'title') save(); });
 
 /* ---------- 시작 ---------- */
+const dayStr = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+async function dailyLogin() {
+  const now = new Date(), today = dayStr(now);
+  if (S.lastLogin === today) return;
+  const y = new Date(now); y.setDate(y.getDate() - 1);
+  S.streak = S.lastLogin === dayStr(y) ? (S.streak || 0) + 1 : 1;
+  S.lastLogin = today;
+  const day = (S.streak - 1) % 7 + 1;
+  const coin = 100 * day + 50 * Math.max(0, S.quest - 1);
+  const item = day === 7 ? ['onigiri', 3] : day % 2 ? ['herb', 3] : ['cure', 2];
+  S.coins += coin; S.items[item[0]] += item[1];
+  save(); updateHud(); sfx('coin');
+  await talk([['n', `📅 출석 보상! (연속 ${S.streak}일째)\n💰${fmt(coin)} 과 ${ITEMS[item[0]].icon} ${ITEMS[item[0]].name} ×${item[1]}을 받았다!${day === 7 ? '\n🎉 7일째 특별 보상!' : ''}`]]);
+  checkAch();
+}
 async function startGame(fresh) {
   S = fresh ? freshState() : (load() || freshState());
   $('#title').hidden = true;
@@ -2167,6 +2302,7 @@ async function startGame(fresh) {
       ['n', '노동 게시판은 집 오른쪽에 있다. 앞에 서서 「조사」를 눌러 보자.'],
     ]);
   }
+  await dailyLogin();
 }
 $('#t-new').addEventListener('click', () => {
   if (hasSave() && !confirm('저장된 데이터가 있어요. 처음부터 시작할까요?')) return;

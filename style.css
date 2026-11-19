@@ -320,3 +320,6 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 }
 .fish-zone { position: absolute; top: 0; bottom: 0; width: 18%; background: #8fdc7a; }
 .fish-needle { position: absolute; top: -2px; bottom: -2px; width: 5px; margin-left: -2px; background: #e8495f; border-radius: 3px; }
+
+.bar.heart i { background: #ff8fb1; }
+.hearts { color: #e8495f; font-size: 14px; letter-spacing: 1px; }
